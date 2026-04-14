@@ -43,6 +43,7 @@
     "lint": "vp fmt --check ."
   },
   "devDependencies": {
+    "vite": "^8.0.5",
     "vite-plus": "latest"
   }
 }
