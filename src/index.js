@@ -21,7 +21,7 @@ export function askrVitePlugin(opts = {}) {
             '@askrjs/askr',
             '@askrjs/askr/router',
             '@askrjs/askr/boot',
-            '@askrjs/askr/for',
+            '@askrjs/askr/control',
             '@askrjs/askr/fx',
             '@askrjs/askr/resources',
             '@askrjs/askr/jsx-runtime',
