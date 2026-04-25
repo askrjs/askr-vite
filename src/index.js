@@ -1,20 +1,39 @@
+import { createRequire } from 'node:module';
 import { transformWithOxc } from 'vite';
+
+const require = createRequire(import.meta.url);
 
 export function askrVitePlugin(opts = {}) {
   const pluginName = 'askr:vite';
   const shouldTransform = opts.transformJsx ?? true;
   const shouldOptimizeTemplates = opts.optimizeTemplates ?? false;
+  const dedupePackages = ['@askrjs/askr'];
 
   return {
     name: pluginName,
     enforce: 'pre',
     config() {
+      let askrEntry = null;
+      try {
+        askrEntry = require.resolve('@askrjs/askr');
+      } catch {
+        askrEntry = null;
+      }
+
       return {
         define: {
           __ASKR_OPTIMIZE_TEMPLATES__: JSON.stringify(shouldOptimizeTemplates),
         },
         resolve: {
-          alias: [],
+          alias: askrEntry
+            ? [
+                {
+                  find: '@askrjs/askr',
+                  replacement: askrEntry,
+                },
+              ]
+            : [],
+          dedupe: dedupePackages,
         },
         optimizeDeps: {
           include: [
