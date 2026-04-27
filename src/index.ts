@@ -1,21 +1,27 @@
-import { createRequire } from 'node:module';
-import { transformWithOxc } from 'vite';
+import { createRequire } from "node:module";
+import { transformWithOxc, type Plugin } from "vite";
 
 const require = createRequire(import.meta.url);
 
-export function askrVitePlugin(opts = {}) {
-  const pluginName = 'askr:vite';
+export interface AskrVitePluginOptions {
+  transformJsx?: boolean;
+  optimizeTemplates?: boolean;
+  ssrPrecompile?: boolean;
+}
+
+export function askrVitePlugin(opts: AskrVitePluginOptions = {}): Plugin {
+  const pluginName = "askr:vite";
   const shouldTransform = opts.transformJsx ?? true;
   const shouldOptimizeTemplates = opts.optimizeTemplates ?? false;
-  const dedupePackages = ['@askrjs/askr'];
+  const dedupePackages = ["@askrjs/askr"];
 
   return {
     name: pluginName,
-    enforce: 'pre',
+    enforce: "pre",
     config() {
-      let askrEntry = null;
+      let askrEntry: string | null = null;
       try {
-        askrEntry = require.resolve('@askrjs/askr');
+        askrEntry = require.resolve("@askrjs/askr");
       } catch {
         askrEntry = null;
       }
@@ -28,7 +34,7 @@ export function askrVitePlugin(opts = {}) {
           alias: askrEntry
             ? [
                 {
-                  find: '@askrjs/askr',
+                  find: "@askrjs/askr",
                   replacement: askrEntry,
                 },
               ]
@@ -37,48 +43,45 @@ export function askrVitePlugin(opts = {}) {
         },
         optimizeDeps: {
           include: [
-            '@askrjs/askr',
-            '@askrjs/askr/router',
-            '@askrjs/askr/boot',
-            '@askrjs/askr/control',
-            '@askrjs/askr/fx',
-            '@askrjs/askr/resources',
-            '@askrjs/askr/jsx-runtime',
-            '@askrjs/askr/jsx-dev-runtime',
+            "@askrjs/askr",
+            "@askrjs/askr/router",
+            "@askrjs/askr/boot",
+            "@askrjs/askr/control",
+            "@askrjs/askr/fx",
+            "@askrjs/askr/resources",
+            "@askrjs/askr/jsx-runtime",
+            "@askrjs/askr/jsx-dev-runtime",
           ],
         },
         oxc: {
           jsx: {
-            runtime: 'automatic',
-            importSource: '@askrjs/askr',
+            runtime: "automatic",
+            importSource: "@askrjs/askr",
           },
-          jsxInject:
-            "import { jsx, jsxs, Fragment } from '@askrjs/askr/jsx-runtime';",
+          jsxInject: "import { jsx, jsxs, Fragment } from '@askrjs/askr/jsx-runtime';",
         },
       };
     },
 
-    async transform(code, id) {
+    async transform(code: string, id: string) {
       if (!shouldTransform) return null;
       if (!/\.(jsx|tsx)$/.test(id)) return null;
-      if (id.includes('node_modules')) return null;
+      if (id.includes("node_modules")) return null;
 
       try {
-        const lang = id.endsWith('.tsx') ? 'tsx' : 'jsx';
+        const lang = id.endsWith(".tsx") ? "tsx" : "jsx";
         const result = await transformWithOxc(code, id, {
           lang,
           jsx: {
-            runtime: 'automatic',
-            importSource: '@askrjs/askr',
+            runtime: "automatic",
+            importSource: "@askrjs/askr",
           },
           sourcemap: true,
         });
 
         if (!result || !result.code) return null;
 
-        const codeOut = shouldOptimizeTemplates
-          ? optimizeTemplateOutput(result.code)
-          : result.code;
+        const codeOut = shouldOptimizeTemplates ? optimizeTemplateOutput(result.code) : result.code;
 
         return {
           code: codeOut,
@@ -91,13 +94,13 @@ export function askrVitePlugin(opts = {}) {
   };
 }
 
-function optimizeTemplateOutput(code) {
-  const hoists = new Map();
+function optimizeTemplateOutput(code: string): string {
+  const hoists = new Map<string, string>();
   let hoistIndex = 0;
 
   const optimized = code.replace(
     /\b(class|className|style):\s*("([^"\\]|\\.)*")/g,
-    (fullMatch, key, literal) => {
+    (fullMatch: string, key: string, literal: string) => {
       const cacheKey = `${key}:${literal}`;
       let identifier = hoists.get(cacheKey);
       if (!identifier) {
@@ -109,7 +112,7 @@ function optimizeTemplateOutput(code) {
         hoists.set(cacheKey, identifier);
       }
       return `${key}: ${identifier}`;
-    }
+    },
   );
 
   if (hoists.size === 0) {
@@ -117,11 +120,11 @@ function optimizeTemplateOutput(code) {
   }
 
   const declarations = Array.from(hoists.entries()).map(([cacheKey, name]) => {
-    const literal = cacheKey.slice(cacheKey.indexOf(':') + 1);
+    const literal = cacheKey.slice(cacheKey.indexOf(":") + 1);
     return `const ${name} = ${literal};`;
   });
 
-  return `${declarations.join('\n')}\n${optimized}`;
+  return `${declarations.join("\n")}\n${optimized}`;
 }
 
 export const askr = askrVitePlugin;

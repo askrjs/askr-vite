@@ -2,41 +2,34 @@
   "name": "@askrjs/askr-vite",
   "version": "0.0.1",
   "description": "Vite plugin for Askr JSX and template transforms",
-  "type": "module",
-  "license": "Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/askrjs/askr-vite.git"
-  },
   "homepage": "https://github.com/askrjs/askr-vite#readme",
   "bugs": {
     "url": "https://github.com/askrjs/askr-vite/issues"
   },
+  "license": "Apache-2.0",
   "author": {
     "name": "askrjs",
     "url": "https://github.com/askrjs"
   },
-  "engines": {
-    "node": ">=18"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/askrjs/askr-vite.git"
   },
   "files": [
     "dist",
     "README.md"
   ],
+  "type": "module",
   "main": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
       "import": "./dist/index.mjs",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.mts"
     }
   },
   "publishConfig": {
     "access": "public"
-  },
-  "peerDependencies": {
-    "@askrjs/askr": "0.0.1",
-    "vite": "^8.0.1"
   },
   "scripts": {
     "build": "vp pack",
@@ -47,7 +40,15 @@
     "lint": "vp fmt --check ."
   },
   "devDependencies": {
-    "vite": "^8.0.5",
+    "typescript": "^5.8.3",
+    "vite": "^8.0.10",
     "vite-plus": "^0.1.19"
+  },
+  "peerDependencies": {
+    "@askrjs/askr": "0.0.1",
+    "vite": "^8.0.1"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

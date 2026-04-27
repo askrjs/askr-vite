@@ -6,8 +6,8 @@ Vite plugin for Askr JSX and template transforms.
 
 ```ts
 // vite.config.ts
-import { defineConfig } from 'vite';
-import { askr } from '@askrjs/askr-vite';
+import { defineConfig } from "vite";
+import { askr } from "@askrjs/askr-vite";
 
 export default defineConfig({
   plugins: [askr()],
@@ -25,7 +25,7 @@ export default defineConfig({
 ```ts
 askr({
   // No required options. All config is inferred from the project.
-})
+});
 ```
 
 ## Peer dependencies
