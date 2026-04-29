@@ -37,7 +37,7 @@
     "test": "npm run test:unit",
     "test:unit": "vp test run -c vitest.config.ts",
     "fmt": "vp fmt .",
-    "lint": "vp fmt --check .",
+    "lint": "vp lint .",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
