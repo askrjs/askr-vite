@@ -41,4 +41,3 @@ npm install @askrjs/askr
 
 - [Askr installation guide](https://github.com/askrjs/askr/tree/main/docs/getting-started/installation.md)
 - [Vite documentation](https://vite.dev)
-
