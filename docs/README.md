@@ -1,4 +1,4 @@
-# @askrjs/askr-vite
+﻿# @askrjs/vite
 
 Vite plugin for Askr JSX and template transforms.
 
@@ -7,7 +7,7 @@ Vite plugin for Askr JSX and template transforms.
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import { askr } from "@askrjs/askr-vite";
+import { askr } from "@askrjs/vite";
 
 export default defineConfig({
   plugins: [askr()],
@@ -33,7 +33,7 @@ askr({
 Requires `vite` and `@askrjs/askr` as peers:
 
 ```bash
-npm install --save-dev vite @askrjs/askr-vite
+npm install --save-dev vite @askrjs/vite
 npm install @askrjs/askr
 ```
 
@@ -41,3 +41,4 @@ npm install @askrjs/askr
 
 - [Getting started](../askr/docs/getting-started/installation.md)
 - [Vite documentation](https://vite.dev)
+
