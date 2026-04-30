@@ -6,6 +6,10 @@ export default defineConfig({
     format: ["esm"],
     outDir: "dist",
     platform: "node",
+    outExtensions: () => ({
+      js: ".js",
+      dts: ".d.ts",
+    }),
     dts: true,
     sourcemap: true,
     deps: {

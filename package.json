@@ -20,12 +20,12 @@
     "README.md"
   ],
   "type": "module",
-  "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "types": "./dist/index.d.mts"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
   "publishConfig": {
@@ -41,9 +41,9 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "typescript": "^5.8.3",
+    "typescript": "^6.0.3",
     "vite": "^8.0.10",
-    "vite-plus": "^0.1.19"
+    "vite-plus": "^0.1.20"
   },
   "peerDependencies": {
     "@askrjs/askr": "^0.0.29",
