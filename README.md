@@ -28,4 +28,3 @@ export default defineConfig({
 - In `vite.config.ts` for any app that uses `@askrjs/askr`
 - When you want the Askr JSX and template transforms
 - When you are scaffolded from an Askr starter and need to understand the plugin boundary
-
