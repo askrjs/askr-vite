@@ -23,8 +23,10 @@ export function askrServer(options: AskrServerOptions): Plugin {
       if (id !== RESOLVED_SERVER_MODULE_ID) return null;
       if (!config) throw new Error('@askrjs/vite: server plugin was not configured.');
       const sourceDocument = resolve(config.root, options.indexHtml ?? 'index.html');
-      const builtDocument = resolve(config.root, config.build.outDir, 'index.html');
-      const document = await readFile(existsSync(builtDocument) ? builtDocument : sourceDocument, 'utf8');
+      const serverOutDocument = resolve(config.root, config.build.outDir, 'index.html');
+      const clientOutDocument = resolve(config.root, config.build.outDir, '..', 'index.html');
+      const builtDocument = [serverOutDocument, clientOutDocument].find(existsSync);
+      const document = await readFile(builtDocument ?? sourceDocument, 'utf8');
       const entry = resolve(config.root, options.entry);
       const exportName = options.exportName ?? 'app';
       return [
