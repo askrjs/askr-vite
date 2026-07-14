@@ -112,6 +112,22 @@ describe('Vite server integration', () => {
     expect(source).toContain('createDocumentApp');
   });
 
+  it('should use the sibling client document given a nested SSR output directory', async () => {
+    const root = await fixture();
+    const clientOutDir = join(root, 'dist');
+    const serverOutDir = join(clientOutDir, 'server');
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(serverOutDir, { recursive: true });
+    await writeFile(join(clientOutDir, 'index.html'), '<html><body>client-build:<!--askr-app--></body></html>');
+    const plugin = askrServer({ entry: './src/server.ts' });
+    plugin.configResolved({ root, build: { outDir: 'dist/server' } });
+
+    const source = await plugin.load(plugin.resolveId(ASKR_SERVER_MODULE_ID));
+
+    expect(source).toContain('client-build:<!--askr-app-->');
+    expect(source).not.toContain('<title>App</title>');
+  });
+
   it('should produce equivalent development and production HTML', async () => {
     const root = await fixture();
     const document = '<html><head><title>Final</title></head><body><!--askr-app--></body></html>';
