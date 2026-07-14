@@ -2,7 +2,10 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   pack: {
-    entry: "src/index.ts",
+    entry: {
+      index: "src/index.ts",
+      server: "src/server/index.ts",
+    },
     format: ["esm"],
     outDir: "dist",
     platform: "node",
@@ -13,7 +16,7 @@ export default defineConfig({
     dts: true,
     sourcemap: true,
     deps: {
-      neverBundle: ["vite", /^@askrjs\/askr(?:\/.*)?$/],
+      neverBundle: ["vite", /^@askrjs\/(?:askr|node|server)(?:\/.*)?$/],
     },
   },
 });
