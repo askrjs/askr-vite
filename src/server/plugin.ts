@@ -1,18 +1,23 @@
-import { createNodeHandler } from '@askrjs/node';
-import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import type { Plugin, ResolvedConfig } from 'vite';
-import { createDevelopmentApp } from './development';
-import type { AskrServerOptions } from './types';
+import { createNodeHandler } from "@askrjs/node";
+import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import type { Plugin, ResolvedConfig } from "vite";
+import { createDevelopmentApp } from "./development";
+import type { AskrServerOptions } from "./types";
 
-export const ASKR_SERVER_MODULE_ID = 'virtual:askr-server';
-const RESOLVED_SERVER_MODULE_ID = '\0askr:server';
+export const ASKR_SERVER_MODULE_ID = "virtual:askr-server";
+const RESOLVED_SERVER_MODULE_ID = "\0askr:server";
 
 export function askrServer(options: AskrServerOptions): Plugin {
   let config: ResolvedConfig | undefined;
   return {
-    name: 'askr:server',
+    name: "askr:server",
+    config() {
+      // Askr owns document routing. Vite should serve modules and assets, but
+      // must not rewrite page URLs to /index.html before the Askr fallback.
+      return { appType: "custom" };
+    },
     configResolved(resolved) {
       config = resolved;
     },
@@ -21,14 +26,14 @@ export function askrServer(options: AskrServerOptions): Plugin {
     },
     async load(id) {
       if (id !== RESOLVED_SERVER_MODULE_ID) return null;
-      if (!config) throw new Error('@askrjs/vite: server plugin was not configured.');
-      const sourceDocument = resolve(config.root, options.indexHtml ?? 'index.html');
-      const serverOutDocument = resolve(config.root, config.build.outDir, 'index.html');
-      const clientOutDocument = resolve(config.root, config.build.outDir, '..', 'index.html');
+      if (!config) throw new Error("@askrjs/vite: server plugin was not configured.");
+      const sourceDocument = resolve(config.root, options.indexHtml ?? "index.html");
+      const serverOutDocument = resolve(config.root, config.build.outDir, "index.html");
+      const clientOutDocument = resolve(config.root, config.build.outDir, "..", "index.html");
       const builtDocument = [serverOutDocument, clientOutDocument].find(existsSync);
-      const document = await readFile(builtDocument ?? sourceDocument, 'utf8');
+      const document = await readFile(builtDocument ?? sourceDocument, "utf8");
       const entry = resolve(config.root, options.entry);
-      const exportName = options.exportName ?? 'app';
+      const exportName = options.exportName ?? "app";
       return [
         `import * as source from ${JSON.stringify(entry)};`,
         `import { createDocumentApp } from '@askrjs/vite/server';`,
@@ -37,11 +42,14 @@ export function askrServer(options: AskrServerOptions): Plugin {
         `if (!sourceApp?.fetch) throw new Error(${JSON.stringify(`@askrjs/vite: ${options.entry} must export a ServerApp`)});`,
         `export const app = createDocumentApp(sourceApp, ${JSON.stringify(document)}, sourceTelemetry ? { telemetry: sourceTelemetry } : undefined);`,
         `export default app;`,
-      ].join('\n');
+      ].join("\n");
     },
     configureServer(server) {
       const handler = createNodeHandler(createDevelopmentApp(server, options));
-      server.middlewares.use(handler);
+      // Page rendering is the development fallback. Register it after Vite's
+      // module, asset, and HTML middleware so client entries and imported CSS
+      // are served by Vite instead of being mistaken for application routes.
+      return () => server.middlewares.use(handler);
     },
   };
 }
