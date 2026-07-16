@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/vite",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Vite plugin for Askr JSX and template transforms",
   "homepage": "https://github.com/askrjs/askr-vite#readme",
   "bugs": {
@@ -30,7 +30,8 @@
     "./server": {
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"
@@ -42,19 +43,27 @@
     "test:unit": "vp test run -c vitest.config.ts",
     "test:jsdom": "npm run test:unit",
     "test:browser": "npm run test:unit",
+    "test:publint": "publint",
     "fmt": "vp fmt .",
     "lint": "vp lint .",
-    "prepublishOnly": "npm run build"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pack:check": "npm pack --ignore-scripts --dry-run --json",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:publint && npm run pack:check",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run check"
   },
   "devDependencies": {
-    "@askrjs/node": ">=0.0.1 <0.1.0",
-    "@askrjs/server": ">=0.0.1 <0.1.0",
+    "@askrjs/askr": "file:../askr",
+    "@askrjs/node": "file:../askr-node",
+    "@askrjs/server": "file:../askr-server",
+    "@types/node": "^26.0.0",
+    "publint": "^0.3.21",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vite-plus": "^0.1.24"
+    "vite-plus": "^0.2.4"
   },
   "peerDependencies": {
-    "@askrjs/askr": ">=0.0.30 <0.1.0",
+    "@askrjs/askr": ">=0.0.53 <0.1.0",
     "@askrjs/node": ">=0.0.1 <0.1.0",
     "@askrjs/server": ">=0.0.1 <0.1.0",
     "vite": "^8.0.1"

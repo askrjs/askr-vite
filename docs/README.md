@@ -19,6 +19,14 @@ export default defineConfig({
 - Configures JSX to use the Askr runtime (`@askrjs/askr/jsx-runtime`)
 - Enables dev-mode invariant stripping in production builds
 - Sets up Vitest integration for Askr component tests
+- Owns SSR document composition through `@askrjs/vite/server`
+
+## SSR markers
+
+The application `index.html` must contain exactly one `<!--askr-head-->` and
+one `<!--askr-app-->` marker. Static head nodes remain in place. Only Askr-owned
+metadata is inserted at the head marker, and the streamed app response is
+inserted at the app marker.
 
 ## Options
 
