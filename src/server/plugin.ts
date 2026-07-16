@@ -33,8 +33,9 @@ export function askrServer(options: AskrServerOptions): Plugin {
         `import * as source from ${JSON.stringify(entry)};`,
         `import { createDocumentApp } from '@askrjs/vite/server';`,
         `const sourceApp = source[${JSON.stringify(exportName)}] ?? source.default;`,
+        `const sourceTelemetry = Reflect.get(source, 'telemetry');`,
         `if (!sourceApp?.fetch) throw new Error(${JSON.stringify(`@askrjs/vite: ${options.entry} must export a ServerApp`)});`,
-        `export const app = createDocumentApp(sourceApp, ${JSON.stringify(document)});`,
+        `export const app = createDocumentApp(sourceApp, ${JSON.stringify(document)}, sourceTelemetry ? { telemetry: sourceTelemetry } : undefined);`,
         `export default app;`,
       ].join('\n');
     },

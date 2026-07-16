@@ -15,6 +15,13 @@ function serverApp(module: Record<string, unknown>, options: AskrServerOptions):
   return value as ServerApp;
 }
 
+function moduleTelemetry(module: Record<string, unknown>) {
+  const telemetry = module['telemetry'];
+  return telemetry && typeof telemetry === 'object'
+    ? { telemetry: telemetry as NonNullable<Parameters<typeof composeAskrDocumentResponse>[2]>['telemetry'] }
+    : undefined;
+}
+
 export function createDevelopmentApp(
   server: ViteDevServer,
   options: AskrServerOptions,
@@ -27,7 +34,7 @@ export function createDevelopmentApp(
       const file = resolve(server.config.root, options.indexHtml ?? 'index.html');
       const document = await readFile(file, 'utf8');
       const transformed = await server.transformIndexHtml(new URL(request.url).pathname, document);
-      return composeAskrDocumentResponse(response, transformed);
+      return composeAskrDocumentResponse(response, transformed, moduleTelemetry(module));
     },
   };
 }
