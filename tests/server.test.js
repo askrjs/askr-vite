@@ -227,7 +227,15 @@ describe("Vite server integration", () => {
   });
 
   it("should preserve page URLs given the Vite development server when configuring app type", () => {
-    expect(askrServer({ entry: "./server.ts" }).config()).toEqual({ appType: "custom" });
+    const config = askrServer({ entry: "./server.ts" }).config();
+    expect(config.appType).toBe("custom");
+  });
+
+  it("should inline the Askr package family given linked peers in Vite module runners", () => {
+    const config = askrServer({ entry: "./server.ts" }).config();
+    expect(config.resolve.noExternal).toHaveLength(1);
+    expect(config.resolve.noExternal[0]).toBe("@askrjs/*");
+    expect(config.ssr).toBeUndefined();
   });
 
   it("should emit a production wrapper using the transformed index document", async () => {
