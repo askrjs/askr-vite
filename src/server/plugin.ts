@@ -9,14 +9,26 @@ import type { AskrServerOptions } from "./types";
 export const ASKR_SERVER_MODULE_ID = "virtual:askr-server";
 const RESOLVED_SERVER_MODULE_ID = "\0askr:server";
 
-export function askrServer(options: AskrServerOptions): Plugin {
+/** Portable public identity for the server integration plugin. */
+export interface AskrServerPlugin {
+  readonly name: "askr:server";
+}
+
+export function askrServer(options: AskrServerOptions): AskrServerPlugin {
   let config: ResolvedConfig | undefined;
-  return {
-    name: "askr:server",
+  const plugin = {
+    name: "askr:server" as const,
     config() {
       // Askr owns document routing. Vite should serve modules and assets, but
       // must not rewrite page URLs to /index.html before the Askr fallback.
-      return { appType: "custom" };
+      // Keep the Askr package family inside Vite's module graph so file-linked
+      // peers cannot load a second runtime with a different component context.
+      // Vitest derives its dependency inlining from resolve.noExternal, which
+      // is also Vite 8's replacement for the deprecated ssr.noExternal option.
+      return {
+        appType: "custom",
+        resolve: { noExternal: ["@askrjs/*"] },
+      };
     },
     configResolved(resolved) {
       config = resolved;
@@ -51,5 +63,6 @@ export function askrServer(options: AskrServerOptions): Plugin {
       // are served by Vite instead of being mistaken for application routes.
       return () => server.middlewares.use(handler);
     },
-  };
+  } satisfies Plugin;
+  return plugin;
 }

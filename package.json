@@ -53,9 +53,9 @@
     "prepublishOnly": "npm run check"
   },
   "devDependencies": {
-    "@askrjs/askr": "file:../askr",
-    "@askrjs/node": "file:../askr-node",
-    "@askrjs/server": "file:../askr-server",
+    "@askrjs/askr": ">=0.0.52 <0.1.0",
+    "@askrjs/node": ">=0.0.1 <0.1.0",
+    "@askrjs/server": ">=0.0.1 <0.1.0",
     "@types/node": "^26.0.0",
     "publint": "^0.3.21",
     "typescript": "^6.0.3",
@@ -63,7 +63,7 @@
     "vite-plus": "^0.2.4"
   },
   "peerDependencies": {
-    "@askrjs/askr": ">=0.0.53 <0.1.0",
+    "@askrjs/askr": ">=0.0.52 <0.1.0",
     "@askrjs/node": ">=0.0.1 <0.1.0",
     "@askrjs/server": ">=0.0.1 <0.1.0",
     "vite": "^8.0.1"
