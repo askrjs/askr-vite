@@ -19,7 +19,9 @@ afterEach(async () => {
 });
 
 beforeAll(async () => {
-  await exec("npm", ["run", "build"], { cwd: repositoryRoot });
+  const npmCli = process.env.npm_execpath;
+  if (!npmCli) throw new Error("npm_execpath is required to run the installed-package build");
+  await exec(process.execPath, [npmCli, "run", "build"], { cwd: repositoryRoot });
 });
 
 async function linkPackage(consumerRoot, name) {
@@ -169,8 +171,8 @@ it("should keep linked Askr packages on one runtime given a Vitest module runner
 
   const vitePlusRoot = dirname(require.resolve("vite-plus/package.json"));
   const result = await exec(
-    join(vitePlusRoot, "bin", "vp"),
-    ["test", "run", "--config", "vite.config.js"],
+    process.execPath,
+    [join(vitePlusRoot, "bin", "vp"), "test", "run", "--config", "vite.config.js"],
     { cwd: consumerRoot },
   );
 
