@@ -16,8 +16,8 @@ export function optimizeTemplateOutput(code: string): string {
   );
   if (hoists.size === 0) return code;
   const declarations = Array.from(hoists.entries()).map(([cacheKey, name]) => {
-    const literal = cacheKey.slice(cacheKey.indexOf(':') + 1);
+    const literal = cacheKey.slice(cacheKey.indexOf(":") + 1);
     return `const ${name} = ${literal};`;
   });
-  return `${declarations.join('\n')}\n${optimized}`;
+  return `${declarations.join("\n")}\n${optimized}`;
 }

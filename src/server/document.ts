@@ -1,4 +1,4 @@
-import type { ServerApp } from '@askrjs/server';
+import type { ServerApp } from "@askrjs/server";
 
 interface ViteTelemetryFields {
   status?: number;
@@ -12,8 +12,8 @@ export interface AskrDocumentOptions {
   telemetry?: ViteTelemetry;
 }
 
-export const ASKR_APP_MARKER = '<!--askr-app-->';
-export const ASKR_HEAD_MARKER = '<!--askr-head-->';
+export const ASKR_APP_MARKER = "<!--askr-app-->";
+export const ASKR_HEAD_MARKER = "<!--askr-head-->";
 
 function markerCount(document: string): number {
   return document.split(ASKR_APP_MARKER).length - 1;
@@ -25,24 +25,20 @@ function headMarkerCount(document: string): number {
 
 function escapeAttribute(value: string): string {
   return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
-function patchHtmlAttribute(
-  document: string,
-  name: 'lang' | 'dir',
-  value: string,
-): string {
+function patchHtmlAttribute(document: string, name: "lang" | "dir", value: string): string {
   return document.replace(/<html\b([^>]*)>/i, (_match, attributes: string) => {
     const matcher = new RegExp(
       `\\s+${name}(?:\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s"'=<>\u0060]+))?`,
-      'gi',
+      "gi",
     );
-    const withoutExisting = attributes.replace(matcher, '');
+    const withoutExisting = attributes.replace(matcher, "");
     return `<html${withoutExisting} ${name}="${escapeAttribute(value)}">`;
   });
 }
@@ -50,35 +46,46 @@ function patchHtmlAttribute(
 export function insertAskrFragment(document: string, fragment: string): string {
   const count = markerCount(document);
   if (count !== 1) {
-    throw new Error(`index.html must contain exactly one ${ASKR_APP_MARKER} marker; found ${count}.`);
+    throw new Error(
+      `index.html must contain exactly one ${ASKR_APP_MARKER} marker; found ${count}.`,
+    );
   }
   return document.replace(ASKR_APP_MARKER, fragment);
 }
 
-export function composeAskrHead(document: string, head: string, lang?: string, dir?: string): string {
+export function composeAskrHead(
+  document: string,
+  head: string,
+  lang?: string,
+  dir?: string,
+): string {
   let output = document.replace(ASKR_HEAD_MARKER, head);
-  if (lang) output = patchHtmlAttribute(output, 'lang', lang);
-  if (dir) output = patchHtmlAttribute(output, 'dir', dir);
+  if (lang) output = patchHtmlAttribute(output, "lang", lang);
+  if (dir) output = patchHtmlAttribute(output, "dir", dir);
   return output;
 }
 
 export function isAskrFragment(response: Response): boolean {
-  return response.headers.get('content-type')
-    ?.split(';')
-    .some((part) => part.trim().toLowerCase() === 'askr-fragment=1') ?? false;
+  return (
+    response.headers
+      .get("content-type")
+      ?.split(";")
+      .some((part) => part.trim().toLowerCase() === "askr-fragment=1") ?? false
+  );
 }
 
 function documentHeaders(response: Response): Headers {
   const headers = new Headers(response.headers);
-  const type = response.headers.get('content-type')
-    ?.split(';')
+  const type = response.headers
+    .get("content-type")
+    ?.split(";")
     .map((part) => part.trim())
-    .filter((part) => part.toLowerCase() !== 'askr-fragment=1')
-    .join('; ');
-  if (type) headers.set('content-type', type);
+    .filter((part) => part.toLowerCase() !== "askr-fragment=1")
+    .join("; ");
+  if (type) headers.set("content-type", type);
   const internalHeaders: string[] = [];
   headers.forEach((_value, key) => {
-    if (key.toLowerCase().startsWith('x-askr-')) internalHeaders.push(key);
+    if (key.toLowerCase().startsWith("x-askr-")) internalHeaders.push(key);
   });
   for (const key of internalHeaders) headers.delete(key);
   return headers;
@@ -141,17 +148,21 @@ export async function composeAskrDocumentResponse(
   if (!isAskrFragment(response)) return response;
   const compose = () => {
     if (headMarkerCount(transformedDocument) !== 1) {
-      throw new Error(`index.html must contain exactly one ${ASKR_HEAD_MARKER} marker; found ${headMarkerCount(transformedDocument)}.`);
+      throw new Error(
+        `index.html must contain exactly one ${ASKR_HEAD_MARKER} marker; found ${headMarkerCount(transformedDocument)}.`,
+      );
     }
     const withHead = composeAskrHead(
       transformedDocument,
-      response.headers.get('x-askr-head') ?? '',
-      response.headers.get('x-askr-html-lang') ?? undefined,
-      response.headers.get('x-askr-html-dir') ?? undefined,
+      response.headers.get("x-askr-head") ?? "",
+      response.headers.get("x-askr-html-lang") ?? undefined,
+      response.headers.get("x-askr-html-dir") ?? undefined,
     );
     const appCount = markerCount(withHead);
     if (appCount !== 1) {
-      throw new Error(`index.html must contain exactly one ${ASKR_APP_MARKER} marker; found ${appCount}.`);
+      throw new Error(
+        `index.html must contain exactly one ${ASKR_APP_MARKER} marker; found ${appCount}.`,
+      );
     }
     const markerIndex = withHead.indexOf(ASKR_APP_MARKER);
     const prefix = withHead.slice(0, markerIndex);
