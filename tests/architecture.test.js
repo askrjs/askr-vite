@@ -27,6 +27,9 @@ describe("Vite package architecture", () => {
     expect(readFileSync(resolve(root, "src/server/plugin.ts"), "utf8")).toMatch(
       /from ["']@askrjs\/node["']/,
     );
+
+    const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+    expect(manifest.dependencies?.["@askrjs/node"]).toMatch(/[<>^~*]/);
   });
 
   it("should keep production modules within 300 lines", () => {
