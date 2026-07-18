@@ -14,7 +14,12 @@ export default defineConfig({
       dts: ".d.ts",
     }),
     dts: true,
-    sourcemap: true,
+    sourcemap: "hidden",
+    banner: ({ fileName }) =>
+      fileName === "server.d.ts"
+        ? { dts: '/// <reference path="./virtual-askr-server.d.ts" />' }
+        : undefined,
+    copy: [{ from: "src/server/virtual-askr-server.d.ts" }],
     deps: {
       neverBundle: ["vite", /^@askrjs\/(?:askr|node|server)(?:\/.*)?$/],
     },

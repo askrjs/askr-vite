@@ -64,8 +64,18 @@ it("should typecheck installed plugins given Vite and vite-plus consumers", asyn
         skipLibCheck: true,
         noEmit: true,
       },
-      include: ["vite.config.ts"],
+      include: ["server.ts", "vite.config.ts"],
     }),
+  );
+  await writeFile(
+    join(consumerRoot, "server.ts"),
+    [
+      'import app, { app as namedApp } from "virtual:askr-server";',
+      'import type { ServerApp } from "@askrjs/server";',
+      "const defaultApp: ServerApp = app;",
+      "const exportedApp: ServerApp = namedApp;",
+      "void [defaultApp, exportedApp];",
+    ].join("\n"),
   );
   await writeFile(
     join(consumerRoot, "vite.config.ts"),
