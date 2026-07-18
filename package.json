@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/vite",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Vite plugin for Askr JSX and template transforms",
   "homepage": "https://github.com/askrjs/askr-vite#readme",
   "bugs": {
@@ -47,7 +47,7 @@
     "fmt": "vp fmt .",
     "lint": "vp lint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "pack:check": "npm pack --ignore-scripts --dry-run --json",
+    "pack:check": "node tests/package-artifacts.js",
     "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:publint && npm run pack:check",
     "prepack": "npm run build",
     "prepublishOnly": "npm run check"
