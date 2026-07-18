@@ -39,10 +39,8 @@
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
-    "test": "npm run test:unit && npm run test:jsdom && npm run test:browser",
+    "test": "npm run test:unit",
     "test:unit": "vp test run -c vitest.config.ts",
-    "test:jsdom": "npm run test:unit",
-    "test:browser": "npm run test:unit",
     "test:publint": "publint",
     "fmt": "vp fmt .",
     "lint": "vp lint .",
@@ -62,7 +60,8 @@
     "publint": "^0.3.21",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vite-plus": "^0.2.4"
+    "vite-plus": "^0.2.4",
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "@askrjs/askr": ">=0.0.52 <0.1.0",
