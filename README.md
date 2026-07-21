@@ -1,5 +1,8 @@
 ﻿# @askrjs/vite
 
+[![CI](https://github.com/askrjs/askr-vite/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/askrjs/askr-vite/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/%40askrjs%2Fvite.svg)](https://www.npmjs.com/package/@askrjs/vite)
+
 Vite plugin for Askr JSX and template transforms.
 
 `@askrjs/vite` is the build-time glue that lets Askr projects use the
