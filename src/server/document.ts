@@ -1,4 +1,5 @@
 import type { ServerApp } from "@askrjs/server";
+import { normalizeAskrHead } from "./head";
 
 interface ViteTelemetryFields {
   status?: number;
@@ -59,7 +60,7 @@ export function composeAskrHead(
   lang?: string,
   dir?: string,
 ): string {
-  let output = document.replace(ASKR_HEAD_MARKER, head);
+  let output = document.replace(ASKR_HEAD_MARKER, normalizeAskrHead(head));
   if (lang) output = patchHtmlAttribute(output, "lang", lang);
   if (dir) output = patchHtmlAttribute(output, "dir", dir);
   return output;
