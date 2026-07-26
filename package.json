@@ -51,7 +51,8 @@
     "prepublishOnly": "npm run check"
   },
   "dependencies": {
-    "@askrjs/node": ">=0.0.1 <0.1.0"
+    "@askrjs/node": ">=0.0.1 <0.1.0",
+    "parse5": "^8.0.1"
   },
   "devDependencies": {
     "@askrjs/askr": ">=0.0.52 <0.1.0",
