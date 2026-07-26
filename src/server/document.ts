@@ -84,6 +84,21 @@ function documentHeaders(response: Response): Headers {
     .filter((part) => part.toLowerCase() !== "askr-fragment=1")
     .join("; ");
   if (type) headers.set("content-type", type);
+  for (const name of [
+    "accept-ranges",
+    "content-digest",
+    "content-encoding",
+    "content-length",
+    "content-md5",
+    "content-range",
+    "digest",
+    "etag",
+    "last-modified",
+    "repr-digest",
+    "trailer",
+  ]) {
+    headers.delete(name);
+  }
   const internalHeaders: string[] = [];
   headers.forEach((_value, key) => {
     if (key.toLowerCase().startsWith("x-askr-")) internalHeaders.push(key);
