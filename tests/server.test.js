@@ -100,6 +100,29 @@ describe("Vite server integration", () => {
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
   });
 
+  it("should strip stale representation headers after composing the body", async () => {
+    const response = await composeAskrDocumentResponse(
+      new Response("<main>fragment</main>", {
+        headers: {
+          "content-type": "text/html; askr-fragment=1",
+          "content-length": "21",
+          "content-encoding": "gzip",
+          etag: '"fragment-etag"',
+          "last-modified": "Wed, 21 Oct 2015 07:28:00 GMT",
+          digest: "sha-256=fragment",
+        },
+      }),
+      "<html><head><!--askr-head--></head><body><!--askr-app--></body></html>",
+    );
+
+    expect(response.headers.get("content-length")).toBeNull();
+    expect(response.headers.get("content-encoding")).toBeNull();
+    expect(response.headers.get("etag")).toBeNull();
+    expect(response.headers.get("last-modified")).toBeNull();
+    expect(response.headers.get("digest")).toBeNull();
+    expect(await response.text()).toContain("<main>fragment</main>");
+  });
+
   it("should stream the document prefix before the fragment completes", async () => {
     let release;
     const pending = new Promise((resolve) => {
