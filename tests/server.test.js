@@ -164,9 +164,7 @@ describe("Vite server integration", () => {
       '<meta data-askr-head="" name="description" content="Documentation">' +
       '<link data-askr-head="" rel="canonical" href="/docs">' +
       '<script data-askr-head="" type="application/ld+json">{"name":"Docs"}</script>';
-    expect(composeAskrHead("<head><!--askr-head--></head>", head)).toBe(
-      `<head>${head}</head>`,
-    );
+    expect(composeAskrHead("<head><!--askr-head--></head>", head)).toBe(`<head>${head}</head>`);
   });
 
   it.each([
@@ -176,9 +174,7 @@ describe("Vite server integration", () => {
     '<img data-askr-head="" src=x onerror="alert(1)">',
     '<script data-askr-head="" type="application/ld+json">{"x":"</script><script>alert(1)</script>"}</script>',
   ])("should reject non-metadata x-askr-head markup", (head) => {
-    expect(() => composeAskrHead("<!--askr-head-->", head)).toThrow(
-      /Invalid x-askr-head metadata/,
-    );
+    expect(() => composeAskrHead("<!--askr-head-->", head)).toThrow(/Invalid x-askr-head metadata/);
   });
 
   it("should normalize title text instead of interpreting nested markup", () => {
@@ -187,9 +183,7 @@ describe("Vite server integration", () => {
         "<!--askr-head-->",
         '<title data-askr-head=""><img src=x onerror="alert(1)"></title>',
       ),
-    ).toBe(
-      '<title data-askr-head="">&lt;img src=x onerror="alert(1)"&gt;</title>',
-    );
+    ).toBe('<title data-askr-head="">&lt;img src=x onerror="alert(1)"&gt;</title>');
   });
 
   it("should strip every internal Askr response header", async () => {
