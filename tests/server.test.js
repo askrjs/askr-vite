@@ -110,6 +110,12 @@ describe("Vite server integration", () => {
           etag: '"fragment-etag"',
           "last-modified": "Wed, 21 Oct 2015 07:28:00 GMT",
           digest: "sha-256=fragment",
+          "accept-ranges": "bytes",
+          "content-digest": "sha-256=:fragment:",
+          "content-md5": "fragment",
+          "content-range": "bytes 0-20/21",
+          "repr-digest": "sha-256=:fragment:",
+          trailer: "digest",
         },
       }),
       "<html><head><!--askr-head--></head><body><!--askr-app--></body></html>",
@@ -120,6 +126,12 @@ describe("Vite server integration", () => {
     expect(response.headers.get("etag")).toBeNull();
     expect(response.headers.get("last-modified")).toBeNull();
     expect(response.headers.get("digest")).toBeNull();
+    expect(response.headers.get("accept-ranges")).toBeNull();
+    expect(response.headers.get("content-digest")).toBeNull();
+    expect(response.headers.get("content-md5")).toBeNull();
+    expect(response.headers.get("content-range")).toBeNull();
+    expect(response.headers.get("repr-digest")).toBeNull();
+    expect(response.headers.get("trailer")).toBeNull();
     expect(await response.text()).toContain("<main>fragment</main>");
   });
 
