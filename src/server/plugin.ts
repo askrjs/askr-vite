@@ -2,7 +2,7 @@ import { createNodeHandler } from "@askrjs/node";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import type { Plugin, ResolvedConfig } from "vite";
+import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
 import { createDevelopmentApp } from "./development";
 import type { AskrServerOptions } from "./types";
 
@@ -12,6 +12,30 @@ const RESOLVED_SERVER_MODULE_ID = "\0askr:server";
 /** Portable public identity for the server integration plugin. */
 export interface AskrServerPlugin {
   readonly name: "askr:server";
+}
+
+function createNodeHandlerOptions(server: ViteDevServer): {
+  baseUrl?: string;
+  allowedHosts?: readonly string[];
+} {
+  const serverConfig = server.config?.server;
+  const baseUrl = serverConfig?.origin;
+
+  if (
+    serverConfig?.allowedHosts &&
+    serverConfig.allowedHosts !== true &&
+    serverConfig.allowedHosts.length > 0
+  ) {
+    return { baseUrl, allowedHosts: serverConfig.allowedHosts };
+  }
+
+  if (baseUrl) {
+    return { baseUrl };
+  }
+
+  const host = typeof serverConfig?.host === "string" ? serverConfig.host : "localhost";
+  const allowedHosts = new Set([host, "localhost", "127.0.0.1", "[::1]"]);
+  return { allowedHosts: Array.from(allowedHosts) };
 }
 
 export function askrServer(options: AskrServerOptions): AskrServerPlugin {
@@ -57,7 +81,10 @@ export function askrServer(options: AskrServerOptions): AskrServerPlugin {
       ].join("\n");
     },
     configureServer(server) {
-      const handler = createNodeHandler(createDevelopmentApp(server, options));
+      const handler = createNodeHandler(
+        createDevelopmentApp(server, options),
+        createNodeHandlerOptions(server),
+      );
       // Page rendering is the development fallback. Register it after Vite's
       // module, asset, and HTML middleware so client entries and imported CSS
       // are served by Vite instead of being mistaken for application routes.
