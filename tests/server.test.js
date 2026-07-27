@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   askrServer,
   ASKR_SERVER_MODULE_ID,
@@ -12,8 +12,17 @@ import {
 } from "../src/server/index.ts";
 import { createDevelopmentApp } from "../src/server/development.ts";
 
+const { createNodeHandlerMock } = vi.hoisted(() => ({
+  createNodeHandlerMock: vi.fn().mockReturnValue(function askrNodeHandler(_req, _res, _next) {}),
+}));
+
+vi.mock("@askrjs/node", () => ({
+  createNodeHandler: createNodeHandlerMock,
+}));
+
 const directories = [];
 afterEach(async () => {
+  createNodeHandlerMock.mockClear();
   await Promise.all(
     directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
   );
@@ -287,6 +296,34 @@ describe("Vite server integration", () => {
     installFallback();
     expect(typeof middleware).toBe("function");
     expect(middleware.length).toBe(3);
+  });
+
+  it("should pass resolved server origin into the node request handler", () => {
+    const server = {
+      config: {
+        server: {
+          origin: "http://example.test:5173",
+          allowedHosts: ["example.test"],
+        },
+      },
+      middlewares: {
+        use: vi.fn(),
+      },
+    };
+    const plugin = askrServer({ entry: "./server.ts" });
+    const installFallback = plugin.configureServer(server);
+    expect(createNodeHandlerMock).toHaveBeenCalledTimes(1);
+    installFallback();
+    expect(createNodeHandlerMock).toHaveBeenCalledTimes(1);
+    expect(createNodeHandlerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fetch: expect.any(Function),
+      }),
+      {
+        baseUrl: "http://example.test:5173",
+        allowedHosts: ["example.test"],
+      },
+    );
   });
 
   it("should preserve page URLs given the Vite development server when configuring app type", () => {
