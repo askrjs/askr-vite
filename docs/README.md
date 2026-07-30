@@ -38,10 +38,14 @@ askr({
 
 ## Peer dependencies
 
-Requires `vite` and `@askrjs/askr` as peers:
+Requires `@askrjs/askr` and either `vite` or `vite-plus`. Both build-tool
+peers are optional so package managers do not install Vite into Vite Plus
+projects:
 
 ```bash
 npm install --save-dev vite @askrjs/vite
+# or
+npm install --save-dev vite-plus @askrjs/vite
 npm install @askrjs/askr
 ```
 
