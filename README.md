@@ -12,6 +12,8 @@ framework's JSX and template conventions inside a normal Vite app.
 
 ```bash
 npm install -D @askrjs/vite vite
+# or
+npm install -D @askrjs/vite vite-plus
 npm install @askrjs/askr
 ```
 

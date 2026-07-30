@@ -1,8 +1,27 @@
 import { createRequire } from "node:module";
-import { transformWithOxc, type Plugin } from "vite";
+import type { Plugin } from "vite";
 import { optimizeTemplateOutput } from "./template-optimizer";
 
 const require = createRequire(import.meta.url);
+type TransformWithOxc = (typeof import("vite"))["transformWithOxc"];
+let transformWithOxcPromise: Promise<TransformWithOxc> | undefined;
+
+async function loadTransformWithOxc(): Promise<TransformWithOxc> {
+  transformWithOxcPromise ??= (async () => {
+    for (const packageName of ["vite-plus", "vite"] as const) {
+      try {
+        const buildTool = await import(packageName);
+        if (typeof buildTool.transformWithOxc === "function") {
+          return buildTool.transformWithOxc as TransformWithOxc;
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FOUND") throw error;
+      }
+    }
+    throw new Error("@askrjs/vite requires either vite or vite-plus to transform JSX.");
+  })();
+  return transformWithOxcPromise;
+}
 
 export interface AskrVitePluginOptions {
   transformJsx?: boolean;
@@ -70,6 +89,7 @@ export function askrVitePlugin(options: AskrVitePluginOptions = {}): AskrVitePlu
     async transform(code, id) {
       if (!shouldTransform || !/\.(jsx|tsx)$/.test(id) || id.includes("node_modules")) return null;
       try {
+        const transformWithOxc = await loadTransformWithOxc();
         const result = await transformWithOxc(code, id, {
           lang: id.endsWith(".tsx") ? "tsx" : "jsx",
           jsx: { runtime: "automatic", importSource: "@askrjs/askr" },

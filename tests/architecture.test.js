@@ -33,6 +33,18 @@ describe("Vite package architecture", () => {
     expect(readFileSync(resolve(root, "vitest.config.ts"), "utf8")).not.toMatch(/\.\.\/askr-node/);
   });
 
+  it("should accept Vite or Vite Plus without installing either build tool", () => {
+    const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+    expect(manifest.dependencies?.vite).toBeUndefined();
+    expect(manifest.dependencies?.["vite-plus"]).toBeUndefined();
+    expect(manifest.peerDependencies?.vite).toMatch(/[<>^~*]/);
+    expect(manifest.peerDependencies?.["vite-plus"]).toMatch(/[<>^~*]/);
+    expect(manifest.peerDependenciesMeta).toMatchObject({
+      vite: { optional: true },
+      "vite-plus": { optional: true },
+    });
+  });
+
   it("should keep production modules within 300 lines", () => {
     const sourceFiles = [
       ...readdirSync(resolve(root, "src"))
