@@ -4,6 +4,8 @@ export default defineConfig({
   pack: {
     entry: {
       index: "src/index.ts",
+      image: "src/image.ts",
+      "image-node": "src/image-node.ts",
       server: "src/server/index.ts",
     },
     format: ["esm"],
@@ -21,7 +23,7 @@ export default defineConfig({
         : undefined,
     copy: [{ from: "src/server/virtual-askr-server.d.ts" }],
     deps: {
-      neverBundle: ["vite", /^@askrjs\/(?:askr|node|server)(?:\/.*)?$/],
+      neverBundle: ["sharp", "vite", /^@askrjs\/(?:askr|node|server)(?:\/.*)?$/],
     },
   },
 });
