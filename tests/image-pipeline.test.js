@@ -158,6 +158,31 @@ it("should honor cover, aspect-ratio, format, and width overrides", async () => 
   expect(entry.image.sources.map((source) => source.type)).toEqual(["image/webp"]);
 });
 
+it("should auto-orient source dimensions and encoded variants", async () => {
+  const root = await createFixture({
+    declarations:
+      'const hero = image(new URL("./hero.jpg", import.meta.url), { widths: [200] });\nglobalThis.__hero = hero;',
+  });
+  await sharp({
+    create: { width: 500, height: 300, channels: 3, background: { r: 35, g: 80, b: 140 } },
+  })
+    .jpeg()
+    .withMetadata({ orientation: 6 })
+    .toFile(path.join(root, "src/hero.jpg"));
+
+  const { output, metadata } = await buildFixture(root);
+  const entry = Object.values(metadata.entries)[0];
+  const fallback = output.find((file) => /assets\/hero-300-.*\.jpg$/.test(file));
+
+  expect(entry.image).toMatchObject({ width: 300, height: 500 });
+  expect(entry.image.srcset).toContain("200w");
+  expect(entry.image.srcset).toContain("300w");
+  await expect(sharp(path.join(root, "dist", fallback)).metadata()).resolves.toMatchObject({
+    width: 300,
+    height: 500,
+  });
+});
+
 it("should cap cover variants by both source dimensions", async () => {
   const root = await createFixture({
     declarations:
@@ -227,6 +252,17 @@ it("should require an aspect ratio for cover and explain a missing Sharp peer", 
   });
   await expect(buildFixture(root)).rejects.toThrow(/cover.*requires an aspectRatio/);
 
+  const invalidFit = await createFixture({
+    declarations: 'const hero = image(new URL("./hero.jpg", import.meta.url), { fit: "stretch" });',
+  });
+  await expect(buildFixture(invalidFit)).rejects.toThrow(/fit must be.*inside.*cover/);
+
+  const invalidPosition = await createFixture({
+    declarations:
+      'const hero = image(new URL("./hero.jpg", import.meta.url), { fit: "cover", aspectRatio: 1, position: 42 });',
+  });
+  await expect(buildFixture(invalidPosition)).rejects.toThrow(/position.*non-empty string/);
+
   const pipeline = new ImagePipeline({}, async () => {
     throw Object.assign(new Error("missing"), { code: "ERR_MODULE_NOT_FOUND" });
   });
@@ -254,6 +290,12 @@ it("should not resolve Sharp for SVG, animated, or already-small declarations", 
     'const animation = image(new URL("./animation.gif", import.meta.url));',
   ].join("\n");
   const root = await createFixture({ width: 100, height: 60, declarations });
+  await sharp({
+    create: { width: 500, height: 300, channels: 3, background: { r: 35, g: 80, b: 140 } },
+  })
+    .jpeg()
+    .withMetadata({ orientation: 6 })
+    .toFile(path.join(root, "src/hero.jpg"));
   await fs.writeFile(
     path.join(root, "src/icon.svg"),
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 12"></svg>',

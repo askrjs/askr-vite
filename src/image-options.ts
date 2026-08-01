@@ -1,4 +1,5 @@
 import type {
+  ImageFit,
   ImageOptions,
   ImageOutputFormat,
   ImagePipelineOptions,
@@ -47,6 +48,22 @@ function ratio(value: ImageOptions["aspectRatio"]): number | undefined {
   return resolved;
 }
 
+function imageFit(value: unknown): ImageFit {
+  const resolved = value ?? "inside";
+  if (resolved !== "inside" && resolved !== "cover") {
+    throw new Error('@askrjs/vite image fit must be "inside" or "cover".');
+  }
+  return resolved;
+}
+
+function cropPosition(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error("@askrjs/vite image position must be a non-empty string.");
+  }
+  return value.trim();
+}
+
 function quality(
   global: ImagePipelineOptions["quality"],
   local: ImageOptions["quality"],
@@ -66,7 +83,7 @@ export function normalizeImageOptions(
   global: ImagePipelineOptions = {},
   local: ImageOptions = {},
 ): NormalizedImageOptions {
-  const fit = local.fit ?? "inside";
+  const fit = imageFit(local.fit);
   const aspectRatio = ratio(local.aspectRatio);
   if (fit === "cover" && aspectRatio === undefined) {
     throw new Error('@askrjs/vite image fit "cover" requires an aspectRatio.');
@@ -77,7 +94,7 @@ export function normalizeImageOptions(
     quality: quality(global.quality, local.quality),
     fit,
     ...(aspectRatio === undefined ? {} : { aspectRatio }),
-    position: local.position ?? "centre",
+    position: cropPosition(local.position) ?? "centre",
   };
 }
 
@@ -92,8 +109,8 @@ export function normalizeDeclarationOptions(options: ImageOptions = {}): ImageOp
           ),
         }
       : {}),
-    ...(options.fit ? { fit: options.fit } : {}),
+    ...(options.fit === undefined ? {} : { fit: imageFit(options.fit) }),
     ...(options.aspectRatio === undefined ? {} : { aspectRatio: ratio(options.aspectRatio) }),
-    ...(options.position ? { position: options.position } : {}),
+    ...(options.position === undefined ? {} : { position: cropPosition(options.position) }),
   };
 }

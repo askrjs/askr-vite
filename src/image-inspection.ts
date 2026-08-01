@@ -41,11 +41,46 @@ function inspectGif(source: Buffer): SourceInspection | undefined {
   return positiveDimensions(source.readUInt16LE(6), source.readUInt16LE(8), "gif", false, true);
 }
 
+function exifOrientation(segment: Buffer): number | undefined {
+  if (segment.length < 14 || segment.subarray(0, 6).toString("binary") !== "Exif\0\0") {
+    return undefined;
+  }
+  const tiff = 6;
+  const byteOrder = segment.subarray(tiff, tiff + 2).toString("ascii");
+  const littleEndian = byteOrder === "II";
+  if (!littleEndian && byteOrder !== "MM") return undefined;
+  const read16 = (offset: number): number | undefined => {
+    const absolute = tiff + offset;
+    if (absolute < tiff || absolute + 2 > segment.length) return undefined;
+    return littleEndian ? segment.readUInt16LE(absolute) : segment.readUInt16BE(absolute);
+  };
+  const read32 = (offset: number): number | undefined => {
+    const absolute = tiff + offset;
+    if (absolute < tiff || absolute + 4 > segment.length) return undefined;
+    return littleEndian ? segment.readUInt32LE(absolute) : segment.readUInt32BE(absolute);
+  };
+  if (read16(2) !== 42) return undefined;
+  const directoryOffset = read32(4);
+  if (directoryOffset === undefined) return undefined;
+  const entries = read16(directoryOffset);
+  if (entries === undefined) return undefined;
+  for (let index = 0; index < entries; index += 1) {
+    const entry = directoryOffset + 2 + index * 12;
+    if (read16(entry) !== 0x0112 || read16(entry + 2) !== 3 || read32(entry + 4) !== 1) {
+      continue;
+    }
+    const orientation = read16(entry + 8);
+    return orientation && orientation >= 1 && orientation <= 8 ? orientation : undefined;
+  }
+  return undefined;
+}
+
 function inspectJpeg(source: Buffer): SourceInspection | undefined {
   if (source.length < 4 || source[0] !== 0xff || source[1] !== 0xd8) return undefined;
   const startOfFrame = new Set([
     0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
   ]);
+  let orientation: number | undefined;
   let offset = 2;
   while (offset + 8 < source.length) {
     if (source[offset] !== 0xff) {
@@ -59,10 +94,15 @@ function inspectJpeg(source: Buffer): SourceInspection | undefined {
     if (offset + 2 > source.length) break;
     const length = source.readUInt16BE(offset);
     if (length < 2 || offset + length > source.length) break;
+    if (marker === 0xe1) {
+      orientation = exifOrientation(source.subarray(offset + 2, offset + length)) ?? orientation;
+    }
     if (startOfFrame.has(marker) && length >= 7) {
+      const width = source.readUInt16BE(offset + 5);
+      const height = source.readUInt16BE(offset + 3);
       return positiveDimensions(
-        source.readUInt16BE(offset + 5),
-        source.readUInt16BE(offset + 3),
+        orientation !== undefined && orientation >= 5 ? height : width,
+        orientation !== undefined && orientation >= 5 ? width : height,
         "jpeg",
         true,
       );

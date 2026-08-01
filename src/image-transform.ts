@@ -99,7 +99,7 @@ async function encodedVariant(
   const cached = await fs.readFile(cachePath).catch(() => undefined);
   if (cached) return cached;
 
-  let pipeline = sharp(source, { animated: false });
+  let pipeline = sharp(source, { animated: false }).autoOrient();
   pipeline =
     options.fit === "cover"
       ? pipeline.resize({ width, height, fit: "cover", position: options.position })
