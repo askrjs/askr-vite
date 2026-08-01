@@ -212,6 +212,22 @@ it("should reject environment-dependent image options without evaluating them", 
   await expect(buildFixture(escaped)).rejects.toThrow(/option strings.*escape sequences/);
 });
 
+it("should ignore image declaration examples inside strings and comments", async () => {
+  const root = await createFixture({
+    declarations: [
+      'const hero = image(new URL("./hero.jpg", import.meta.url), { widths: [100] });',
+      `const example = 'image(new URL("./missing-string.jpg", import.meta.url), { widths: [1] })';`,
+      '// image(new URL("./missing-line.jpg", import.meta.url), { widths: [1] });',
+      '/* image(new URL("./missing-block.jpg", import.meta.url), { widths: [1] }); */',
+      "globalThis.__hero = hero;",
+    ].join("\n"),
+  });
+
+  const { output, metadata } = await buildFixture(root);
+  expect(Object.keys(metadata.entries)).toHaveLength(1);
+  expect(output.some((file) => file.includes("missing-"))).toBe(false);
+});
+
 it("should pass through SVG, animated, and already-small images without rewriting other assets", async () => {
   const declarations = [
     'const hero = image(new URL("./hero.jpg", import.meta.url));',

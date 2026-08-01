@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { ResolvedConfig } from "vite";
+import { imageDeclarationMask } from "./image-lexical";
 import {
   IMAGE_METADATA_PATH,
   IMAGE_METADATA_VERSION,
@@ -25,7 +26,6 @@ interface Declaration {
   options: ImageOptions;
 }
 
-const IMAGE_IMPORT = /from\s+["']@askrjs\/vite\/image["']/;
 const IMAGE_CALL = /\bimage\s*\(\s*new\s+URL\s*\(\s*(["'])([^"']+)\1\s*,\s*import\.meta\.url\s*\)/g;
 
 function staticJson(source: string, id: string): string {
@@ -130,10 +130,12 @@ function findCallEnd(code: string, start: number): number {
 }
 
 function declarations(code: string, id: string): Declaration[] {
-  if (!IMAGE_IMPORT.test(code)) return [];
+  const mask = imageDeclarationMask(code);
+  if (!mask) return [];
   const output: Declaration[] = [];
   IMAGE_CALL.lastIndex = 0;
   for (let match = IMAGE_CALL.exec(code); match; match = IMAGE_CALL.exec(code)) {
+    if (!mask[match.index]) continue;
     const afterUrl = IMAGE_CALL.lastIndex;
     const end = findCallEnd(code, afterUrl);
     if (end < 0) throw new Error(`@askrjs/vite found an unterminated image() call in ${id}.`);
