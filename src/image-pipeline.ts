@@ -45,8 +45,18 @@ function staticJson(source: string, id: string): string {
       continue;
     }
     if (character === '"' || character === "'") {
-      const end = source.indexOf(character, index + 1);
-      if (end < 0) throw new Error(`@askrjs/vite found an unterminated image option in ${id}.`);
+      let end = index + 1;
+      while (end < source.length && source[end] !== character) {
+        if (source[end] === "\\") {
+          throw new Error(
+            `@askrjs/vite image() option strings in ${id} cannot contain escape sequences.`,
+          );
+        }
+        end += 1;
+      }
+      if (end >= source.length) {
+        throw new Error(`@askrjs/vite found an unterminated image option in ${id}.`);
+      }
       output += JSON.stringify(source.slice(index + 1, end));
       index = end + 1;
       continue;

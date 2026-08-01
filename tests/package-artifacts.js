@@ -16,6 +16,8 @@ if (result.length !== 1) {
 const packedFiles = new Set(result[0].files.map(({ path }) => normalize(path)));
 const imageExport = JSON.parse(readFileSync("package.json", "utf8")).exports["./image"];
 if (
+  !imageExport ||
+  typeof imageExport !== "object" ||
   imageExport.node !== "./dist/image-node.js" ||
   imageExport.browser !== "./dist/image.js" ||
   imageExport.import !== "./dist/image.js" ||

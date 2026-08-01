@@ -180,6 +180,11 @@ it("should reject environment-dependent image options without evaluating them", 
   });
 
   await expect(buildFixture(root)).rejects.toThrow(/must not reference process.*static object/);
+
+  const escaped = await createFixture({
+    declarations: String.raw`const hero = image(new URL("./hero.jpg", import.meta.url), { fit: "cover", aspectRatio: 1, position: "north\"east" });`,
+  });
+  await expect(buildFixture(escaped)).rejects.toThrow(/option strings.*escape sequences/);
 });
 
 it("should pass through SVG, animated, and already-small images without rewriting other assets", async () => {
