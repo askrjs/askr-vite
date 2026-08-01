@@ -1,17 +1,19 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { inspectSource, type AssetFormat } from "./image-inspection";
 import { normalizeDeclarationOptions, normalizeImageOptions } from "./image-options";
 import type { ImageOptions, ImageOutputFormat, ImagePipelineOptions } from "./image-types";
 
 type SharpFactory = (typeof import("sharp"))["default"];
 export type SharpLoader = () => Promise<SharpFactory>;
+type TransformFormat = "avif" | "webp" | "jpeg" | "png";
 
 export interface EmittedVariant {
   referenceId: string;
   width: number;
   height: number;
-  format: "avif" | "webp" | "jpeg" | "png";
+  format: AssetFormat;
   mime: string;
 }
 
@@ -61,11 +63,11 @@ function sourceFormat(format: string | undefined): "jpeg" | "png" | undefined {
   return format === "png" ? "png" : undefined;
 }
 
-function extension(format: EmittedVariant["format"]): string {
+function extension(format: AssetFormat): string {
   return format === "jpeg" ? "jpg" : format;
 }
 
-function mime(format: EmittedVariant["format"]): string {
+function mime(format: AssetFormat): string {
   return format === "jpeg" ? "image/jpeg" : `image/${format}`;
 }
 
@@ -90,7 +92,7 @@ async function encodedVariant(
   transformKey: string,
   width: number,
   height: number,
-  format: EmittedVariant["format"],
+  format: TransformFormat,
   options: ReturnType<typeof normalizeImageOptions>,
 ): Promise<Buffer> {
   const cachePath = path.join(cacheDir, `${transformKey}-${width}.${extension(format)}`);
@@ -137,7 +139,7 @@ function passThroughImage(
   source: Buffer,
   width: number,
   height: number,
-  format: "jpeg" | "png",
+  format: AssetFormat,
 ): { fallback: EmittedVariant; variants: EmittedVariant[] } {
   const referenceId = context.emitFile({ type: "asset", name: path.basename(sourcePath), source });
   const fallback = { referenceId, width, height, format, mime: mime(format) };
@@ -154,6 +156,33 @@ export async function processImage(
 ): Promise<ProcessedImage> {
   const source = await fs.readFile(sourcePath);
   const sourceHash = hash(source);
+  const normalized = normalizeImageOptions(globalOptions, declarationOptions);
+  const inspection = inspectSource(sourcePath, source);
+  const key = declarationKey(sourcePath, declarationOptions);
+  const shouldPassThroughWithoutSharp =
+    !inspection.transformable ||
+    inspection.animated ||
+    (normalized.fit === "inside" && inspection.width <= normalized.widths[0]!);
+  if (shouldPassThroughWithoutSharp) {
+    const encoder = "passthrough";
+    return {
+      declarationKey: key,
+      sourcePath,
+      sourceHash,
+      declarationOptions: normalizeDeclarationOptions(declarationOptions),
+      transformKey: hash(`${sourceHash}\0${JSON.stringify(normalized)}\0${encoder}`),
+      encoder,
+      ...passThroughImage(
+        context,
+        sourcePath,
+        source,
+        inspection.width,
+        inspection.height,
+        inspection.format,
+      ),
+      passThrough: true,
+    };
+  }
   const sharp = await loadSharp(sharpLoader);
   const metadata = await sharp(source, { animated: true }).metadata();
   const sourceWidth = metadata.autoOrient.width ?? metadata.width;
@@ -164,19 +193,12 @@ export async function processImage(
   if (!sourceWidth || !sourceHeight) {
     throw new Error(`@askrjs/vite could not determine intrinsic dimensions for ${sourcePath}.`);
   }
-  const normalized = normalizeImageOptions(globalOptions, declarationOptions);
   const encoder = `sharp@${sharp.versions.sharp}`;
   const transformKey = hash(`${sourceHash}\0${JSON.stringify(normalized)}\0${encoder}`);
   const fallbackFormat = sourceFormat(metadata.format);
-  const key = declarationKey(sourcePath, declarationOptions);
 
-  const shouldPassThrough =
-    path.extname(sourcePath).toLowerCase() === ".svg" ||
-    (metadata.pages ?? 1) > 1 ||
-    !fallbackFormat ||
-    (normalized.fit === "inside" && sourceWidth <= normalized.widths[0]!);
+  const shouldPassThrough = (metadata.pages ?? 1) > 1 || !fallbackFormat;
   if (shouldPassThrough) {
-    const format = fallbackFormat ?? "png";
     return {
       declarationKey: key,
       sourcePath,
@@ -184,7 +206,14 @@ export async function processImage(
       declarationOptions: normalizeDeclarationOptions(declarationOptions),
       transformKey,
       encoder,
-      ...passThroughImage(context, sourcePath, source, sourceWidth, sourceHeight, format),
+      ...passThroughImage(
+        context,
+        sourcePath,
+        source,
+        sourceWidth,
+        sourceHeight,
+        fallbackFormat ?? inspection.format,
+      ),
       passThrough: true,
     };
   }

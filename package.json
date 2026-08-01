@@ -33,8 +33,10 @@
     },
     "./image": {
       "types": "./dist/image.d.ts",
+      "node": "./dist/image-node.js",
       "browser": "./dist/image.js",
-      "import": "./dist/image-node.js"
+      "import": "./dist/image.js",
+      "default": "./dist/image.js"
     },
     "./package.json": "./package.json"
   },

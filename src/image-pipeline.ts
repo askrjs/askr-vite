@@ -115,12 +115,14 @@ function imageExpression(processed: ProcessedImage): string {
     (variant) => variant.format === processed.fallback.format,
   );
   const modernFormats = ["avif", "webp"] as const;
-  const sources = modernFormats.flatMap((format) => {
-    const variants = processed.variants.filter((variant) => variant.format === format);
-    return variants.length === 0
-      ? []
-      : [`{type:${JSON.stringify(mime(format))},srcset:${srcsetExpression(variants)}}`];
-  });
+  const sources = processed.passThrough
+    ? []
+    : modernFormats.flatMap((format) => {
+        const variants = processed.variants.filter((variant) => variant.format === format);
+        return variants.length === 0
+          ? []
+          : [`{type:${JSON.stringify(mime(format))},srcset:${srcsetExpression(variants)}}`];
+      });
   return `image({__askrImage:true,src:${urlExpression(processed.fallback.referenceId)},${
     processed.passThrough ? "" : `srcset:${srcsetExpression(fallbackVariants)},`
   }width:${processed.fallback.width},height:${processed.fallback.height},sources:[${sources.join(",")}]})`;
@@ -151,10 +153,12 @@ function responsiveMetadata(
     ...(processed.passThrough ? {} : { srcset: srcset(fallbackVariants) }),
     width: processed.fallback.width,
     height: processed.fallback.height,
-    sources: (["avif", "webp"] as const).flatMap((format) => {
-      const variants = processed.variants.filter((variant) => variant.format === format);
-      return variants.length === 0 ? [] : [{ type: mime(format), srcset: srcset(variants) }];
-    }),
+    sources: processed.passThrough
+      ? []
+      : (["avif", "webp"] as const).flatMap((format) => {
+          const variants = processed.variants.filter((variant) => variant.format === format);
+          return variants.length === 0 ? [] : [{ type: mime(format), srcset: srcset(variants) }];
+        }),
   };
 }
 
@@ -209,11 +213,9 @@ export class ImagePipeline {
   async writeMetadata(context: AssetPluginContext): Promise<void> {
     if (!this.#config || this.#processed.size === 0) return;
     const entries: Record<string, ImageMetadataEntry> = {};
-    let encoder = "";
     for (const processed of [...this.#processed.values()].sort((left, right) =>
       left.declarationKey.localeCompare(right.declarationKey),
     )) {
-      encoder = processed.encoder;
       entries[processed.declarationKey] = {
         sourcePath: processed.sourcePath,
         sourceHash: processed.sourceHash,
@@ -229,7 +231,6 @@ export class ImagePipeline {
     }
     const record: ImageMetadataRecord = {
       version: IMAGE_METADATA_VERSION,
-      encoder,
       entries,
     };
     const metadataPath = path.join(this.#config.root, IMAGE_METADATA_PATH);

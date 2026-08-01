@@ -50,7 +50,7 @@ function readMetadata(sourcePath: string): ImageMetadataRecord {
       cause: error,
     });
   }
-  if (record.version !== IMAGE_METADATA_VERSION || typeof record.encoder !== "string") {
+  if (record.version !== IMAGE_METADATA_VERSION || !record.entries) {
     throw new Error(
       `@askrjs/vite image metadata at ${metadataPath} is incompatible. Re-run the Vite client build.`,
     );
@@ -58,8 +58,18 @@ function readMetadata(sourcePath: string): ImageMetadataRecord {
   return record;
 }
 
+function isResponsiveImage(value: unknown): value is ResponsiveImage {
+  return Boolean(
+    value && typeof value === "object" && (value as Partial<ResponsiveImage>).__askrImage === true,
+  );
+}
+
 /** Resolve the exact responsive metadata produced by the preceding client build. */
-export function image(source: URL, options: ImageOptions = {}): ResponsiveImage {
+export function image(source: URL, options?: ImageOptions): ResponsiveImage;
+/** Accept Vite's transformed declaration during direct Node module evaluation. */
+export function image(source: ResponsiveImage): ResponsiveImage;
+export function image(source: URL | ResponsiveImage, options: ImageOptions = {}): ResponsiveImage {
+  if (isResponsiveImage(source)) return Object.freeze(source);
   if (!(source instanceof URL) || source.protocol !== "file:") {
     throw new TypeError("@askrjs/vite image() requires a file URL created with import.meta.url.");
   }
@@ -72,11 +82,7 @@ export function image(source: URL, options: ImageOptions = {}): ResponsiveImage 
     );
   }
   const sourceHash = hash(readFileSync(sourcePath));
-  if (
-    entry.sourcePath !== sourcePath ||
-    entry.sourceHash !== sourceHash ||
-    entry.encoder !== record.encoder
-  ) {
+  if (entry.sourcePath !== sourcePath || entry.sourceHash !== sourceHash) {
     throw new Error(
       `@askrjs/vite image metadata for ${sourcePath} is stale. Re-run the Vite client build before SSR/SSG.`,
     );

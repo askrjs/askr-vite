@@ -134,6 +134,7 @@ it("should reuse cached transforms and resolve exact metadata in direct Node SSG
   const heroPath = path.join(root, "src/hero.jpg");
   const resolved = nodeImage(pathToFileURL(heroPath), options);
   expect(resolved).toEqual(Object.values(first.metadata.entries)[0].image);
+  expect(nodeImage(resolved)).toBe(resolved);
 
   await sharp({
     create: { width: 500, height: 300, channels: 3, background: { r: 180, g: 20, b: 30 } },
@@ -215,6 +216,51 @@ it("should require an aspect ratio for cover and explain a missing Sharp peer", 
       path.join(root, "src/main.ts"),
     ),
   ).rejects.toThrow(/optional peer "sharp".*sharp@\^0\.35\.3/);
+});
+
+it("should not resolve Sharp for SVG, animated, or already-small declarations", async () => {
+  const declarations = [
+    'const hero = image(new URL("./hero.jpg", import.meta.url));',
+    'const icon = image(new URL("./icon.svg", import.meta.url));',
+    'const animation = image(new URL("./animation.gif", import.meta.url));',
+  ].join("\n");
+  const root = await createFixture({ width: 100, height: 60, declarations });
+  await fs.writeFile(
+    path.join(root, "src/icon.svg"),
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 12"></svg>',
+  );
+  await fs.writeFile(
+    path.join(root, "src/animation.gif"),
+    Buffer.from(
+      "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAEALAAAAAABAAEAAAICRAEAIfkEAQAAAQAsAAAAAAEAAQAAAgJEADs=",
+      "base64",
+    ),
+  );
+  let sharpLoads = 0;
+  const pipeline = new ImagePipeline({}, async () => {
+    sharpLoads += 1;
+    throw Object.assign(new Error("missing"), { code: "ERR_MODULE_NOT_FOUND" });
+  });
+  pipeline.configure({ root, command: "build" });
+  const emitted = [];
+  await expect(
+    pipeline.transform(
+      {
+        emitFile(file) {
+          emitted.push(file.name);
+          return `asset-${emitted.length}`;
+        },
+        getFileName(referenceId) {
+          return referenceId;
+        },
+      },
+      `import { image } from "@askrjs/vite/image";\n${declarations}`,
+      path.join(root, "src/main.ts"),
+    ),
+  ).resolves.toContain("__askrImage");
+
+  expect(sharpLoads).toBe(0);
+  expect(emitted.sort()).toEqual(["animation.gif", "hero.jpg", "icon.svg"]);
 });
 
 it("should fail clearly when direct Node SSG metadata is missing", async () => {
