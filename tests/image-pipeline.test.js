@@ -158,6 +158,30 @@ it("should honor cover, aspect-ratio, format, and width overrides", async () => 
   expect(entry.image.sources.map((source) => source.type)).toEqual(["image/webp"]);
 });
 
+it("should cap cover variants by both source dimensions", async () => {
+  const root = await createFixture({
+    declarations:
+      'const hero = image(new URL("./hero.jpg", import.meta.url), { widths: [200, 400, 800], fit: "cover", aspectRatio: 1 });\nglobalThis.__hero = hero;',
+  });
+  const { output, metadata } = await buildFixture(root);
+  const entry = Object.values(metadata.entries)[0];
+
+  expect(entry.image).toMatchObject({ width: 300, height: 300 });
+  expect(entry.image.srcset).toContain("200w");
+  expect(entry.image.srcset).toContain("300w");
+  expect(entry.image.srcset).not.toContain("400w");
+  expect(output.some((file) => /hero-400-/.test(file))).toBe(false);
+});
+
+it("should reject environment-dependent image options without evaluating them", async () => {
+  const root = await createFixture({
+    declarations:
+      'const hero = image(new URL("./hero.jpg", import.meta.url), { widths: process.env.IMAGE_WIDTHS });\nglobalThis.__hero = hero;',
+  });
+
+  await expect(buildFixture(root)).rejects.toThrow(/must not reference process.*static object/);
+});
+
 it("should pass through SVG, animated, and already-small images without rewriting other assets", async () => {
   const declarations = [
     'const hero = image(new URL("./hero.jpg", import.meta.url));',

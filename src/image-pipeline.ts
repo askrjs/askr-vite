@@ -28,20 +28,64 @@ interface Declaration {
 const IMAGE_IMPORT = /from\s+["']@askrjs\/vite\/image["']/;
 const IMAGE_CALL = /\bimage\s*\(\s*new\s+URL\s*\(\s*(["'])([^"']+)\1\s*,\s*import\.meta\.url\s*\)/g;
 
-function staticOptions(source: string, id: string): ImageOptions {
-  const trimmed = source.trim();
-  if (!trimmed) return {};
-  if (!/^[\s\w{}[\]:,'".+\-/]*$/.test(trimmed)) {
+function staticJson(source: string, id: string): string {
+  let output = "";
+  for (let index = 0; index < source.length;) {
+    const character = source[index]!;
+    if (/\s/.test(character) || "{}[]:".includes(character)) {
+      output += character;
+      index += 1;
+      continue;
+    }
+    if (character === ",") {
+      let next = index + 1;
+      while (/\s/.test(source[next] ?? "")) next += 1;
+      if (source[next] !== "}" && source[next] !== "]") output += character;
+      index += 1;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      const end = source.indexOf(character, index + 1);
+      if (end < 0) throw new Error(`@askrjs/vite found an unterminated image option in ${id}.`);
+      output += JSON.stringify(source.slice(index + 1, end));
+      index = end + 1;
+      continue;
+    }
+    const number = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:e[+-]?\d+)?/i.exec(source.slice(index));
+    if (number) {
+      output += number[0];
+      index += number[0].length;
+      continue;
+    }
+    const identifier = /^[A-Za-z_]\w*/.exec(source.slice(index));
+    if (identifier) {
+      let next = index + identifier[0].length;
+      while (/\s/.test(source[next] ?? "")) next += 1;
+      if (source[next] === ":") output += JSON.stringify(identifier[0]);
+      else if (["true", "false", "null"].includes(identifier[0])) output += identifier[0];
+      else {
+        throw new Error(
+          `@askrjs/vite image() options in ${id} must not reference ${identifier[0]}; use a static object literal.`,
+        );
+      }
+      index += identifier[0].length;
+      continue;
+    }
     throw new Error(
       `@askrjs/vite image() options in ${id} must be a static object literal so builds and direct SSG imports agree.`,
     );
   }
+  return output;
+}
+
+function staticOptions(source: string, id: string): ImageOptions {
+  const trimmed = source.trim();
+  if (!trimmed) return {};
   let value: unknown;
   try {
-    // The token allowlist above excludes calls, templates, assignments, and statements.
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    value = new Function(`"use strict"; return (${trimmed});`)();
+    value = JSON.parse(staticJson(trimmed, id));
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("@askrjs/vite")) throw error;
     throw new Error(`@askrjs/vite could not parse image() options in ${id}.`, { cause: error });
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) {

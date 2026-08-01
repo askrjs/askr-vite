@@ -218,8 +218,17 @@ export async function processImage(
     };
   }
 
-  const widths = normalized.widths.filter((width) => width <= sourceWidth);
-  if (!widths.includes(sourceWidth)) widths.push(sourceWidth);
+  const maximumWidth =
+    normalized.fit === "cover"
+      ? Math.min(sourceWidth, Math.floor(sourceHeight * normalized.aspectRatio!))
+      : sourceWidth;
+  if (maximumWidth < 1) {
+    throw new Error(
+      `@askrjs/vite cannot crop ${sourcePath} to aspect ratio ${normalized.aspectRatio} without upscaling.`,
+    );
+  }
+  const widths = normalized.widths.filter((width) => width <= maximumWidth);
+  if (!widths.includes(maximumWidth)) widths.push(maximumWidth);
   widths.sort((left, right) => left - right);
   const variants: EmittedVariant[] = [];
   for (const format of variantFormats(normalized.formats, fallbackFormat)) {
