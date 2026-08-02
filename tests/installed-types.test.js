@@ -34,8 +34,10 @@ async function linkPackage(consumerRoot, name) {
 it("should typecheck installed plugins given Vite and vite-plus consumers", async () => {
   const rootDeclaration = await readFile(join(repositoryRoot, "dist", "index.d.ts"), "utf8");
   const serverDeclaration = await readFile(join(repositoryRoot, "dist", "server.d.ts"), "utf8");
+  const imageDeclaration = await readFile(join(repositoryRoot, "dist", "image.d.ts"), "utf8");
   expect(rootDeclaration).not.toMatch(/from ["']vite["']/);
   expect(serverDeclaration).not.toMatch(/from ["']vite["']/);
+  expect(imageDeclaration).not.toMatch(/from ["'](?:vite|sharp)["']/);
 
   const consumerRoot = await mkdtemp(join(tmpdir(), "askr-vite-installed-types-"));
   temporaryDirectories.push(consumerRoot);
@@ -47,7 +49,9 @@ it("should typecheck installed plugins given Vite and vite-plus consumers", asyn
     await readFile(join(repositoryRoot, "package.json"), "utf8"),
   );
   await Promise.all(
-    ["@askrjs/server", "vite", "vite-plus"].map((name) => linkPackage(consumerRoot, name)),
+    ["@askrjs/askr", "@askrjs/server", "vite", "vite-plus"].map((name) =>
+      linkPackage(consumerRoot, name),
+    ),
   );
   await writeFile(
     join(consumerRoot, "package.json"),
@@ -64,7 +68,7 @@ it("should typecheck installed plugins given Vite and vite-plus consumers", asyn
         skipLibCheck: true,
         noEmit: true,
       },
-      include: ["server.ts", "vite.config.ts"],
+      include: ["image.ts", "server.ts", "vite.config.ts"],
     }),
   );
   await writeFile(
@@ -78,13 +82,25 @@ it("should typecheck installed plugins given Vite and vite-plus consumers", asyn
     ].join("\n"),
   );
   await writeFile(
+    join(consumerRoot, "image.ts"),
+    [
+      'import { Image, image } from "@askrjs/vite/image";',
+      'const hero = image(new URL("./hero.jpg", import.meta.url), {',
+      '  widths: [320, 640], fit: "cover", aspectRatio: { width: 16, height: 9 },',
+      "});",
+      'Image({ image: hero, alt: "Mountain ridge", sizes: "100vw", class: "hero" });',
+      "// @ts-expect-error alt is required for accessible output",
+      "Image({ image: hero });",
+    ].join("\n"),
+  );
+  await writeFile(
     join(consumerRoot, "vite.config.ts"),
     [
       'import { askr } from "@askrjs/vite";',
       'import { askrServer } from "@askrjs/vite/server";',
       'import { defineConfig as defineViteConfig, type Plugin } from "vite";',
       'import { defineConfig } from "vite-plus";',
-      "const vitePlugin: Plugin = askr();",
+      "const vitePlugin: Plugin = askr({ images: true });",
       'const serverPlugin: Plugin = askrServer({ entry: "./server.ts" });',
       "void defineViteConfig({ plugins: [vitePlugin, serverPlugin] });",
       'export default defineConfig({ plugins: [askr(), askrServer({ entry: "./server.ts" })] });',

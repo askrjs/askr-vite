@@ -20,6 +20,7 @@ export default defineConfig({
 - Enables dev-mode invariant stripping in production builds
 - Sets up Vitest integration for Askr component tests
 - Owns SSR document composition through `@askrjs/vite/server`
+- Optionally transforms declared responsive images with `askr({ images: true })`
 
 ## SSR markers
 
@@ -32,9 +33,15 @@ inserted at the app marker.
 
 ```ts
 askr({
-  // No required options. All config is inferred from the project.
+  images: true,
 });
 ```
+
+Responsive images require `sharp@^0.35.3`. Import `image` and `Image` from
+`@askrjs/vite/image`; declarations receive configurable widths, AVIF/WebP/source
+formats, quality, and inside/cover fit. Cover requires an aspect ratio. The
+client build must precede direct Node SSR/SSG so its checked image metadata is
+available. See the root README for the complete example and defaults.
 
 ## Peer dependencies
 
