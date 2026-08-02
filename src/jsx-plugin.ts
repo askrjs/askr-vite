@@ -1,6 +1,8 @@
 import { createRequire } from "node:module";
 import type { Plugin } from "vite";
 import { optimizeTemplateOutput } from "./template-optimizer";
+import { ImagePipeline } from "./image-pipeline";
+import type { ImagePipelineOptions } from "./image-types";
 
 const require = createRequire(import.meta.url);
 type TransformWithOxc = (typeof import("vite"))["transformWithOxc"];
@@ -27,6 +29,8 @@ export interface AskrVitePluginOptions {
   transformJsx?: boolean;
   optimizeTemplates?: boolean;
   ssrPrecompile?: boolean;
+  /** Opt into declared responsive image transforms. */
+  images?: boolean | ImagePipelineOptions;
 }
 
 /**
@@ -43,6 +47,9 @@ export interface AskrVitePlugin {
 export function askrVitePlugin(options: AskrVitePluginOptions = {}): AskrVitePlugin {
   const shouldTransform = options.transformJsx ?? true;
   const shouldOptimizeTemplates = options.optimizeTemplates ?? false;
+  const imagePipeline = options.images
+    ? new ImagePipeline(options.images === true ? {} : options.images)
+    : undefined;
   const plugin = {
     name: "askr:vite" as const,
     enforce: "pre",
@@ -86,11 +93,21 @@ export function askrVitePlugin(options: AskrVitePluginOptions = {}): AskrVitePlu
         },
       };
     },
+    configResolved(config) {
+      imagePipeline?.configure(config);
+    },
     async transform(code, id) {
-      if (!shouldTransform || !/\.(jsx|tsx)$/.test(id) || id.includes("node_modules")) return null;
+      if (id.includes("node_modules")) return null;
+      const imageTransformed = imagePipeline
+        ? await imagePipeline.transform(this, code, id)
+        : undefined;
+      const input = imageTransformed ?? code;
+      if (!shouldTransform || !/\.(jsx|tsx)$/.test(id)) {
+        return imageTransformed ? { code: imageTransformed, map: null } : null;
+      }
       try {
         const transformWithOxc = await loadTransformWithOxc();
-        const result = await transformWithOxc(code, id, {
+        const result = await transformWithOxc(input, id, {
           lang: id.endsWith(".tsx") ? "tsx" : "jsx",
           jsx: { runtime: "automatic", importSource: "@askrjs/askr" },
           sourcemap: true,
@@ -101,8 +118,11 @@ export function askrVitePlugin(options: AskrVitePluginOptions = {}): AskrVitePlu
           map: result.map,
         };
       } catch {
-        return null;
+        return imageTransformed ? { code: imageTransformed, map: null } : null;
       }
+    },
+    async writeBundle() {
+      await imagePipeline?.writeMetadata(this);
     },
   } satisfies Plugin;
   return plugin;

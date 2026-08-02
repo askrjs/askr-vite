@@ -14,6 +14,29 @@ if (result.length !== 1) {
 }
 
 const packedFiles = new Set(result[0].files.map(({ path }) => normalize(path)));
+const imageExport = JSON.parse(readFileSync("package.json", "utf8")).exports["./image"];
+if (
+  !imageExport ||
+  typeof imageExport !== "object" ||
+  imageExport.node !== "./dist/image-node.js" ||
+  imageExport.browser !== "./dist/image.js" ||
+  imageExport.import !== "./dist/image.js" ||
+  imageExport.default !== "./dist/image.js"
+) {
+  throw new Error(
+    "Responsive-image exports must keep Node metadata lookup out of browser bundles.",
+  );
+}
+for (const required of [
+  "dist/image.d.ts",
+  "dist/image.js",
+  "dist/image-node.d.ts",
+  "dist/image-node.js",
+]) {
+  if (!packedFiles.has(normalize(required))) {
+    throw new Error(`Packed artifact is missing responsive-image entry ${required}.`);
+  }
+}
 const sourceMappingPattern = /[#@]\s*sourceMappingURL=([^\s*]+)/gu;
 
 for (const file of result[0].files) {
