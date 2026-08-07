@@ -10,6 +10,7 @@ import { afterEach, beforeAll, expect, it } from "vitest";
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
 const repositoryRoot = resolve(import.meta.dirname, "..");
+const typescriptCli = join(dirname(require.resolve("typescript/package.json")), "bin", "tsc");
 const temporaryDirectories = [];
 
 afterEach(async () => {
@@ -109,7 +110,7 @@ it("should typecheck installed plugins given Vite and vite-plus consumers", asyn
 
   const result = await exec(
     process.execPath,
-    [require.resolve("typescript/lib/tsc.js"), "-p", join(consumerRoot, "tsconfig.json")],
+    [typescriptCli, "-p", join(consumerRoot, "tsconfig.json")],
     { cwd: consumerRoot },
   );
 
