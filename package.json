@@ -58,25 +58,25 @@
     "prepublishOnly": "npm run check"
   },
   "dependencies": {
-    "@askrjs/node": ">=0.0.1 <0.1.0",
-    "parse5": "^7.3.0"
+    "@askrjs/node": ">=0.0.8 <0.1.0",
+    "parse5": "^8.0.1"
   },
   "devDependencies": {
-    "@askrjs/askr": ">=0.0.52 <0.1.0",
-    "@askrjs/server": ">=0.0.1 <0.1.0",
-    "@types/node": "^26.0.0",
-    "publint": "^0.3.21",
+    "@askrjs/askr": ">=0.0.87 <0.1.0",
+    "@askrjs/server": ">=0.0.11 <0.1.0",
+    "@types/node": "^26.1.2",
+    "publint": "^0.3.23",
     "sharp": "^0.35.3",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.16",
-    "vite-plus": "^0.2.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vite-plus": "^0.2.8",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@askrjs/askr": ">=0.0.52 <0.1.0",
+    "@askrjs/askr": ">=0.0.87 <0.1.0",
     "sharp": "^0.35.3",
-    "vite": "^8.0.1",
-    "vite-plus": "^0.2.4"
+    "vite": "^8.2.1",
+    "vite-plus": "^0.2.8"
   },
   "peerDependenciesMeta": {
     "sharp": {
