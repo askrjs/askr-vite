@@ -180,7 +180,7 @@ it("should keep linked Askr packages on one runtime given a Vitest module runner
       'import { expect, it } from "vitest";',
       'import { runtime } from "@askrjs/askr";',
       'import { siblingRuntime } from "@askrjs/ui";',
-      'it("uses one runtime", () => expect(siblingRuntime).toBe(runtime));',
+      'it("should use one runtime", () => expect(siblingRuntime).toBe(runtime));',
     ].join("\n"),
   );
   await writeFile(
