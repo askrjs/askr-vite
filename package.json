@@ -20,6 +20,7 @@
     "README.md"
   ],
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -62,9 +63,9 @@
     "parse5": "^8.0.1"
   },
   "devDependencies": {
-    "@askrjs/askr": ">=0.0.87 <0.1.0",
+    "@askrjs/askr": ">=0.0.88 <0.1.0",
     "@askrjs/server": ">=0.0.11 <0.1.0",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "publint": "^0.3.23",
     "sharp": "^0.35.3",
     "typescript": "^7.0.2",
@@ -73,7 +74,7 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@askrjs/askr": ">=0.0.87 <0.1.0",
+    "@askrjs/askr": ">=0.0.88 <0.1.0",
     "sharp": "^0.35.3",
     "vite": "^8.2.1",
     "vite-plus": "^0.2.8"
