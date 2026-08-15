@@ -45,6 +45,15 @@ describe("Vite package architecture", () => {
     });
   });
 
+  it("should keep template optimization on the parsed JSX-runtime boundary", () => {
+    const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+    const optimizer = readFileSync(resolve(root, "src/template-optimizer.ts"), "utf8");
+
+    expect(manifest.dependencies?.["oxc-parser"]).toMatch(/[<>^~*]/);
+    expect(optimizer).toMatch(/from ["']oxc-parser["']/);
+    expect(optimizer).not.toMatch(/code\.(?:replace|replaceAll|split)\(/);
+  });
+
   it("should keep production modules within 300 lines", () => {
     const sourceFiles = [
       ...readdirSync(resolve(root, "src"))

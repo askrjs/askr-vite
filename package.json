@@ -60,6 +60,7 @@
   },
   "dependencies": {
     "@askrjs/node": ">=0.0.8 <0.1.0",
+    "oxc-parser": "^0.144.0",
     "parse5": "^8.0.1"
   },
   "devDependencies": {

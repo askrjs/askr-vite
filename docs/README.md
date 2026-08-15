@@ -17,6 +17,7 @@ export default defineConfig({
 ## What it does
 
 - Configures JSX to use the Askr runtime (`@askrjs/askr/jsx-runtime`)
+- Reports attributed JSX/TSX transform failures through the build tool
 - Enables dev-mode invariant stripping in production builds
 - Sets up Vitest integration for Askr component tests
 - Owns SSR document composition through `@askrjs/vite/server`
@@ -34,8 +35,14 @@ inserted at the app marker.
 ```ts
 askr({
   images: true,
+  optimizeTemplates: true,
 });
 ```
+
+`optimizeTemplates` is off by default. When enabled, it parses compiled output
+and hoists repeated static `class`, `className`, and `style` values only from
+actual JSX-runtime props objects. Matching text in strings, template literals,
+comments, and ordinary objects is outside the rewrite boundary.
 
 Responsive images require `sharp@^0.35.3`. Import `image` and `Image` from
 `@askrjs/vite/image`; declarations receive configurable widths, AVIF/WebP/source
