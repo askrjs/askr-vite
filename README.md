@@ -29,6 +29,13 @@ export default defineConfig({
 });
 ```
 
+`askr({ optimizeTemplates: true })` optionally hoists repeated static
+`class`, `className`, and `style` literals from parsed JSX-runtime property
+nodes. The optimizer never scans or rewrites unrelated strings, template
+literals, or ordinary objects. JSX/TSX transform failures are reported through
+Vite with the source filename and parser detail instead of falling through to a
+later build stage.
+
 ## Responsive images
 
 Responsive image processing is opt in and requires the optional `sharp` peer:

@@ -30,15 +30,32 @@ async function withViteFixture(source, options, work) {
 describe("Askr JSX plugin", () => {
   it("should optimize only parsed JSX property literals", () => {
     const compiled = [
+      'import { jsx, jsxs as fragment } from "@askrjs/askr/jsx-runtime";',
       'export const label = `class: "active"`;',
+      'export const settings = { class: "active" };',
       'export const view = fragment({ children: [jsx("div", { class: "active" }), jsx("span", { class: "active" })] });',
     ].join("\n");
 
     const optimized = optimizeTemplateOutput(compiled);
 
     expect(optimized).toContain('export const label = `class: "active"`;');
+    expect(optimized).toContain('export const settings = { class: "active" };');
     expect(optimized).toContain('const __askrStaticLiteral0 = "active";');
     expect(optimized.match(/class: __askrStaticLiteral0/g)).toHaveLength(2);
+  });
+
+  it("should generate a collision-free hoist identifier", () => {
+    const compiled = [
+      'import { jsx } from "@askrjs/askr/jsx-runtime";',
+      'const __askrStaticLiteral0 = "existing";',
+      'export const first = jsx("div", { className: "card" });',
+      'export const second = jsx("span", { className: "card" });',
+    ].join("\n");
+
+    const optimized = optimizeTemplateOutput(compiled);
+
+    expect(optimized).toContain('const __askrStaticLiteral1 = "card";');
+    expect(optimized.match(/className: __askrStaticLiteral1/g)).toHaveLength(2);
   });
 
   it("should preserve matching template content through a live Vite dev server", async () => {
@@ -52,7 +69,7 @@ describe("Askr JSX plugin", () => {
       expect(transformed?.code).toContain('class: "active"');
       expect(transformed?.code).toContain("class: __askrStaticLiteral0");
     });
-  });
+  }, 20_000);
 
   it("should report its own attributed error for malformed JSX", async () => {
     const plugin = askrVitePlugin();
@@ -72,5 +89,5 @@ describe("Askr JSX plugin", () => {
         /fixture\.tsx|PARSE_ERROR|Transform failed/,
       );
     });
-  });
+  }, 20_000);
 });
