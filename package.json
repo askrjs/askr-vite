@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/vite",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "Vite plugin for Askr JSX and template transforms",
   "homepage": "https://github.com/askrjs/askr-vite#readme",
   "bugs": {
