@@ -25,8 +25,11 @@ async function loadTransformWithOxc(): Promise<TransformWithOxc> {
   return transformWithOxcPromise;
 }
 
+/** Options accepted by {@link askrVitePlugin}. */
 export interface AskrVitePluginOptions {
+  /** Transform `.jsx`/`.tsx` files with the Askr JSX runtime. Defaults to `true`. */
   transformJsx?: boolean;
+  /** Optimize compiled template output. Defaults to `false`. */
   optimizeTemplates?: boolean;
   ssrPrecompile?: boolean;
   /** Opt into declared responsive image transforms. */
@@ -44,6 +47,14 @@ export interface AskrVitePlugin {
   readonly name: "askr:vite";
 }
 
+/**
+ * Create the Askr Vite plugin, which transforms Askr JSX/TSX with oxc, wires
+ * up dependency pre-bundling and aliasing for `@askrjs/askr`, and optionally
+ * runs the responsive image pipeline and template optimizer.
+ *
+ * @param options Plugin configuration; all fields are optional.
+ * @returns A Vite-compatible plugin object exposing the `askr:vite` name.
+ */
 export function askrVitePlugin(options: AskrVitePluginOptions = {}): AskrVitePlugin {
   const shouldTransform = options.transformJsx ?? true;
   const shouldOptimizeTemplates = options.optimizeTemplates ?? false;

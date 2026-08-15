@@ -9,11 +9,14 @@ interface ViteTelemetry {
   viteDocument?<T>(fields: ViteTelemetryFields, work: () => T): T;
 }
 
+/** Options for composing a rendered Askr fragment into the HTML document. */
 export interface AskrDocumentOptions {
   telemetry?: ViteTelemetry;
 }
 
+/** Placeholder marker in `index.html` replaced with the rendered app fragment. */
 export const ASKR_APP_MARKER = "<!--askr-app-->";
+/** Placeholder marker in `index.html` replaced with rendered `<head>` content. */
 export const ASKR_HEAD_MARKER = "<!--askr-head-->";
 
 function markerCount(document: string): number {
@@ -44,6 +47,11 @@ function patchHtmlAttribute(document: string, name: "lang" | "dir", value: strin
   });
 }
 
+/**
+ * Replace the single {@link ASKR_APP_MARKER} in `document` with `fragment`.
+ *
+ * @throws If `document` does not contain exactly one app marker.
+ */
 export function insertAskrFragment(document: string, fragment: string): string {
   const count = markerCount(document);
   if (count !== 1) {
@@ -54,6 +62,10 @@ export function insertAskrFragment(document: string, fragment: string): string {
   return document.replace(ASKR_APP_MARKER, fragment);
 }
 
+/**
+ * Replace the {@link ASKR_HEAD_MARKER} in `document` with normalized `head`
+ * markup, and patch the `<html>` tag's `lang`/`dir` attributes when given.
+ */
 export function composeAskrHead(
   document: string,
   head: string,
@@ -66,6 +78,7 @@ export function composeAskrHead(
   return output;
 }
 
+/** Whether `response` carries the `askr-fragment=1` content-type marker. */
 export function isAskrFragment(response: Response): boolean {
   return (
     response.headers
@@ -156,6 +169,16 @@ function composeDocumentBody(
   });
 }
 
+/**
+ * Compose an Askr fragment response into the full `transformedDocument` HTML,
+ * streaming the fragment's body between the document prefix and suffix.
+ * Non-fragment responses are returned unchanged.
+ *
+ * @param response The upstream response, expected to be an Askr fragment.
+ * @param transformedDocument The `index.html` document with app/head markers.
+ * @param options Optional telemetry hook wrapping the compose work.
+ * @returns The composed full-document `Response`, or `response` unchanged.
+ */
 export async function composeAskrDocumentResponse(
   response: Response,
   transformedDocument: string,
@@ -194,6 +217,10 @@ export async function composeAskrDocumentResponse(
     : compose();
 }
 
+/**
+ * Wrap `app` so every response is composed into `transformedDocument` via
+ * {@link composeAskrDocumentResponse}.
+ */
 export function createDocumentApp(
   app: ServerApp,
   transformedDocument: string,

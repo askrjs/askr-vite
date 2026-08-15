@@ -6,6 +6,7 @@ import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
 import { createDevelopmentApp } from "./development";
 import type { AskrServerOptions } from "./types";
 
+/** Virtual module id that resolves to the generated server document app. */
 export const ASKR_SERVER_MODULE_ID = "virtual:askr-server";
 const RESOLVED_SERVER_MODULE_ID = "\0askr:server";
 
@@ -38,6 +39,14 @@ function createNodeHandlerOptions(server: ViteDevServer): {
   return { allowedHosts: Array.from(allowedHosts) };
 }
 
+/**
+ * Create the Vite plugin that serves Askr's server-rendered document during
+ * development and generates the {@link ASKR_SERVER_MODULE_ID} virtual module
+ * that composes the built server app with the HTML document.
+ *
+ * @param options Server entry and document configuration.
+ * @returns A Vite-compatible plugin object exposing the `askr:server` name.
+ */
 export function askrServer(options: AskrServerOptions): AskrServerPlugin {
   let config: ResolvedConfig | undefined;
   const plugin = {
