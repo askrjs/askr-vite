@@ -1,6 +1,6 @@
 {
   "name": "@askrjs/vite",
-  "version": "0.0.14",
+  "version": "0.2.0",
   "description": "Vite plugin for Askr JSX and template transforms",
   "homepage": "https://github.com/askrjs/askr-vite#readme",
   "bugs": {
@@ -59,13 +59,13 @@
     "prepublishOnly": "npm run check"
   },
   "dependencies": {
-    "@askrjs/node": ">=0.0.8 <0.1.0",
+    "@askrjs/node": ">=0.2.0 <0.3.0",
     "oxc-parser": "^0.144.0",
     "parse5": "^8.0.1"
   },
   "devDependencies": {
-    "@askrjs/askr": ">=0.0.88 <0.1.0",
-    "@askrjs/server": ">=0.0.11 <0.1.0",
+    "@askrjs/askr": ">=0.2.0 <0.3.0",
+    "@askrjs/server": ">=0.2.0 <0.3.0",
     "@types/node": "^26.2.0",
     "publint": "^0.3.23",
     "sharp": "^0.35.3",
@@ -75,7 +75,7 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@askrjs/askr": ">=0.0.88 <0.1.0",
+    "@askrjs/askr": ">=0.2.0 <0.3.0",
     "sharp": "^0.35.3",
     "vite": "^8.2.1",
     "vite-plus": "^0.2.8"
