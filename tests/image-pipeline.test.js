@@ -3,12 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { build as viteBuild } from "vite";
 import { build as vitePlusBuild } from "vite-plus";
 import { image as nodeImage } from "../src/image-node.ts";
 import { ImagePipeline } from "../src/image-pipeline.ts";
 import { askr } from "../src/index.ts";
+import { traceSourcePosition } from "../src/source-map-rewrites.ts";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const temporaryDirectories = [];
@@ -88,6 +89,18 @@ async function buildFixture(root, build = viteBuild, options = true) {
   };
 }
 
+function hook(plugin, name) {
+  const value = plugin[name];
+  return typeof value === "function" ? value : value.handler;
+}
+
+function positionOf(code, token) {
+  const offset = code.indexOf(token);
+  if (offset < 0) throw new Error(`Missing token: ${token}`);
+  const before = code.slice(0, offset).split("\n");
+  return { line: before.length - 1, column: before.at(-1).length };
+}
+
 describe.each([
   ["Vite", viteBuild],
   ["Vite+", vitePlusBuild],
@@ -112,6 +125,74 @@ describe.each([
     expect(entry.image.srcset).not.toContain("800w");
     expect(entry.image.sources.map((source) => source.type)).toEqual(["image/avif", "image/webp"]);
   });
+});
+
+it("should map combined image and template rewrites to the original TSX", async () => {
+  const root = await createFixture();
+  const id = path.join(root, "src/combined.tsx");
+  const source = [
+    'import { image } from "@askrjs/vite/image";',
+    'const hero = image(new URL("./hero.jpg", import.meta.url), { widths: [100] });',
+    'export const marker = "after-image";',
+    'export const View = () => <><img class="shared" src={hero.src}/><img class="shared" src={hero.src}/></>;',
+  ].join("\n");
+  const plugin = askr({ images: true, optimizeTemplates: true });
+  hook(plugin, "configResolved")({ command: "build", root, base: "/" });
+  let reference = 0;
+  const transformed = await hook(plugin, "transform").call(
+    {
+      emitFile: vi.fn(() => `asset${reference++}`),
+      error(message) {
+        throw new Error(String(message));
+      },
+    },
+    source,
+    id,
+  );
+
+  const generated = positionOf(transformed.code, "export const marker");
+  const original = positionOf(source, "export const marker");
+  expect(traceSourcePosition(transformed.map, generated.line, generated.column)).toEqual(original);
+  expect(transformed.map.sourcesContent).toEqual([source]);
+});
+
+it("should invalidate an image transform when the source changes on disk", async () => {
+  const root = await createFixture();
+  const id = path.join(root, "src/repeated.ts");
+  const source = [
+    'import { image } from "@askrjs/vite/image";',
+    'export const hero = image(new URL("./hero.jpg", import.meta.url), { widths: [100] });',
+    'export const marker = "after-image";',
+  ].join("\n");
+  const plugin = askr({ images: true });
+  hook(plugin, "configResolved")({ command: "build", root, base: "/" });
+  let reference = 0;
+  const emitted = [];
+  const context = {
+    emitFile(file) {
+      emitted.push(file.source);
+      return `asset${reference++}`;
+    },
+    error(message) {
+      throw new Error(String(message));
+    },
+  };
+  const first = await hook(plugin, "transform").call(context, source, id);
+  const generated = positionOf(first.code, "export const marker");
+  expect(traceSourcePosition(first.map, generated.line, generated.column)).toEqual(
+    positionOf(source, "export const marker"),
+  );
+  const firstEmissionCount = emitted.length;
+  await sharp({
+    create: { width: 500, height: 300, channels: 3, background: { r: 220, g: 10, b: 30 } },
+  })
+    .jpeg()
+    .toFile(path.join(root, "src/hero.jpg"));
+
+  const second = await hook(plugin, "transform").call(context, source, id);
+
+  expect(emitted.length).toBeGreaterThan(firstEmissionCount);
+  expect(second.code).not.toBe(first.code);
 });
 
 it("should reuse cached transforms and resolve exact metadata in direct Node SSG imports", async () => {
