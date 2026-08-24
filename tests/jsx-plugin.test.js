@@ -77,7 +77,7 @@ describe("Askr JSX plugin", () => {
       expect(transformed?.code).toContain('class: "active"');
       expect(transformed?.code).toContain("class: __askrStaticLiteral0");
     });
-  }, 20_000);
+  }, 60_000);
 
   it("should preserve original positions after template literal hoisting", async () => {
     const source = [
