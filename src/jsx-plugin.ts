@@ -1,6 +1,12 @@
 import { createRequire } from "node:module";
 import type { Plugin } from "vite";
-import { optimizeTemplateOutput } from "./template-optimizer";
+import {
+  remapGenerated,
+  remapOriginal,
+  sourceMapForRewrite,
+  type RawSourceMap,
+} from "./source-map-rewrites";
+import { optimizeTemplateOutputWithEdits } from "./template-optimizer";
 import { ImagePipeline } from "./image-pipeline";
 import type { ImagePipelineOptions } from "./image-types";
 
@@ -112,11 +118,16 @@ export function askrVitePlugin(options: AskrVitePluginOptions = {}): AskrVitePlu
     async transform(code, id) {
       if (id.includes("node_modules")) return null;
       const imageTransformed = imagePipeline
-        ? await imagePipeline.transform(this, code, id)
+        ? await imagePipeline.transformWithEdits(this, code, id)
         : undefined;
-      const input = imageTransformed ?? code;
+      const input = imageTransformed?.code ?? code;
       if (!shouldTransform || !/\.(jsx|tsx)$/.test(id)) {
-        return imageTransformed ? { code: imageTransformed, map: null } : null;
+        return imageTransformed
+          ? {
+              code: imageTransformed.code,
+              map: sourceMapForRewrite(code, imageTransformed.code, imageTransformed.edits, id),
+            }
+          : null;
       }
       try {
         const transformWithOxc = await loadTransformWithOxc();
@@ -126,9 +137,15 @@ export function askrVitePlugin(options: AskrVitePluginOptions = {}): AskrVitePlu
           sourcemap: true,
         });
         if (!result?.code) return null;
+        let map = result.map as RawSourceMap;
+        if (imageTransformed) {
+          map = remapOriginal(map, code, input, imageTransformed.edits);
+        }
+        if (!shouldOptimizeTemplates) return { code: result.code, map };
+        const optimized = optimizeTemplateOutputWithEdits(result.code);
         return {
-          code: shouldOptimizeTemplates ? optimizeTemplateOutput(result.code) : result.code,
-          map: result.map,
+          code: optimized.code,
+          map: remapGenerated(map, result.code, optimized.code, optimized.edits),
         };
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);

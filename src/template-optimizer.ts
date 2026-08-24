@@ -1,4 +1,5 @@
 import { parseSync, Visitor, type ObjectProperty } from "oxc-parser";
+import type { TextEdit } from "./source-map-rewrites";
 
 const OPTIMIZED_PROPS = new Set(["class", "className", "style"]);
 const JSX_RUNTIME_SOURCE = "@askrjs/askr/jsx-runtime";
@@ -65,15 +66,20 @@ function collectCandidate(
   candidates.set(cacheKey, group);
 }
 
-export function optimizeTemplateOutput(code: string): string {
+export interface OptimizedTemplateOutput {
+  code: string;
+  edits: TextEdit[];
+}
+
+export function optimizeTemplateOutputWithEdits(code: string): OptimizedTemplateOutput {
   const parsed = parseSync("askr-compiled.js", code, {
     lang: "js",
     sourceType: "module",
   });
-  if (parsed.errors.length > 0) return code;
+  if (parsed.errors.length > 0) return { code, edits: [] };
 
   const runtimeFactories = collectRuntimeFactories(parsed.program);
-  if (runtimeFactories.size === 0) return code;
+  if (runtimeFactories.size === 0) return { code, edits: [] };
 
   const candidates = new Map<string, Candidate[]>();
   const identifiers = new Set<string>();
@@ -115,8 +121,15 @@ export function optimizeTemplateOutput(code: string): string {
     }
   }
 
-  if (declarations.length === 0) return code;
+  if (declarations.length === 0) return { code, edits: [] };
 
+  const prefix = `${declarations.join("\n")}\n`;
+  const edits: TextEdit[] = [
+    { start: 0, end: 0, replacement: prefix, mapTo: replacements[0]!.start },
+    ...replacements
+      .map(({ start, end, identifier }) => ({ start, end, replacement: identifier }))
+      .sort((left, right) => left.start - right.start),
+  ];
   let optimized = code;
   for (const replacement of replacements.sort((left, right) => right.start - left.start)) {
     optimized =
@@ -124,5 +137,9 @@ export function optimizeTemplateOutput(code: string): string {
       replacement.identifier +
       optimized.slice(replacement.end);
   }
-  return `${declarations.join("\n")}\n${optimized}`;
+  return { code: `${prefix}${optimized}`, edits };
+}
+
+export function optimizeTemplateOutput(code: string): string {
+  return optimizeTemplateOutputWithEdits(code).code;
 }
