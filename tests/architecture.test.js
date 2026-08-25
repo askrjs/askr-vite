@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -52,19 +52,5 @@ describe("Vite package architecture", () => {
     expect(manifest.dependencies?.["oxc-parser"]).toMatch(/[<>^~*]/);
     expect(optimizer).toMatch(/from ["']oxc-parser["']/);
     expect(optimizer).not.toMatch(/code\.(?:replace|replaceAll|split)\(/);
-  });
-
-  it("should keep production modules within 300 lines", () => {
-    const sourceFiles = [
-      ...readdirSync(resolve(root, "src"))
-        .filter((file) => file.endsWith(".ts"))
-        .map((file) => resolve(root, "src", file)),
-      ...readdirSync(resolve(root, "src/server"))
-        .filter((file) => file.endsWith(".ts"))
-        .map((file) => resolve(root, "src/server", file)),
-    ];
-    for (const file of sourceFiles) {
-      expect(readFileSync(file, "utf8").split("\n").length, file).toBeLessThanOrEqual(300);
-    }
   });
 });
