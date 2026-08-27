@@ -81,6 +81,38 @@ describe("Vite server integration", () => {
     expect(html).toContain("<body><main>page</main></body>");
   });
 
+  it("should preserve request-local SSR style carriers in development documents", async () => {
+    const root = await fixture();
+    let requestId = 0;
+    const server = {
+      config: { root },
+      ssrLoadModule: async () => ({
+        app: {
+          fetch: async () => {
+            requestId += 1;
+            const id = requestId;
+            return fragment(
+              `<style data-askr-style-registry="true">.ak-style-${id}{display:flex;flex-direction:column}</style><main class="ak-style-${id}">page</main>`,
+            );
+          },
+        },
+      }),
+      transformIndexHtml: async (_url, html) => html,
+    };
+    const app = createDevelopmentApp(server, { entry: "./server.ts" });
+
+    const [first, second] = await Promise.all([
+      app.fetch(new Request("http://example.test/first")).then((response) => response.text()),
+      app.fetch(new Request("http://example.test/second")).then((response) => response.text()),
+    ]);
+
+    expect(first.match(/data-askr-style-registry/g)).toHaveLength(1);
+    expect(second.match(/data-askr-style-registry/g)).toHaveLength(1);
+    expect(first).toContain("flex-direction:column");
+    expect(second).toContain("flex-direction:column");
+    expect(first).not.toBe(second);
+  });
+
   it("should insert content at the sole askr app marker", () => {
     expect(
       insertAskrFragment("<head><!--askr-head--></head><body><!--askr-app--></body>", "<main />"),
