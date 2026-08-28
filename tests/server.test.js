@@ -81,6 +81,38 @@ describe("Vite server integration", () => {
     expect(html).toContain("<body><main>page</main></body>");
   });
 
+  it("should preserve request-local SSR style carriers in development documents", async () => {
+    const root = await fixture();
+    let requestId = 0;
+    const server = {
+      config: { root },
+      ssrLoadModule: async () => ({
+        app: {
+          fetch: async () => {
+            requestId += 1;
+            const id = requestId;
+            return fragment(
+              `<style data-askr-style-registry="true">.ak-style-${id}{display:flex;flex-direction:column}</style><main class="ak-style-${id}">page</main>`,
+            );
+          },
+        },
+      }),
+      transformIndexHtml: async (_url, html) => html,
+    };
+    const app = createDevelopmentApp(server, { entry: "./server.ts" });
+
+    const [first, second] = await Promise.all([
+      app.fetch(new Request("http://example.test/first")).then((response) => response.text()),
+      app.fetch(new Request("http://example.test/second")).then((response) => response.text()),
+    ]);
+
+    expect(first.match(/data-askr-style-registry/g)).toHaveLength(1);
+    expect(second.match(/data-askr-style-registry/g)).toHaveLength(1);
+    expect(first).toContain("flex-direction:column");
+    expect(second).toContain("flex-direction:column");
+    expect(first).not.toBe(second);
+  });
+
   it("should insert content at the sole askr app marker", () => {
     expect(
       insertAskrFragment("<head><!--askr-head--></head><body><!--askr-app--></body>", "<main />"),
@@ -170,6 +202,65 @@ describe("Vite server integration", () => {
     expect(decoder.decode((await reader.read()).value)).toBe(" second</main>");
     expect(decoder.decode((await reader.read()).value)).toBe("</body></html>");
     expect((await reader.read()).done).toBe(true);
+  });
+
+  it("should not read the fragment again when eager demand overlaps stream closure", async () => {
+    const upstream = fragment("<main>fragment</main>");
+    const source = upstream.body;
+    const getReader = source.getReader.bind(source);
+    let reads = 0;
+    Object.defineProperty(source, "getReader", {
+      value: () => {
+        const reader = getReader();
+        return {
+          read: () => {
+            reads += 1;
+            return reader.read();
+          },
+          cancel: (reason) => reader.cancel(reason),
+        };
+      },
+    });
+    const NativeReadableStream = globalThis.ReadableStream;
+    class EagerPullReadableStream extends NativeReadableStream {
+      constructor(underlyingSource, strategy) {
+        let wrappedController;
+        super(
+          {
+            pull(controller) {
+              wrappedController ??= {
+                enqueue(value) {
+                  controller.enqueue(value);
+                  if ((controller.desiredSize ?? 0) > 0) {
+                    void underlyingSource.pull(wrappedController);
+                  }
+                },
+                close: () => controller.close(),
+                error: (reason) => controller.error(reason),
+              };
+              return underlyingSource.pull(wrappedController);
+            },
+            cancel: (reason) => underlyingSource.cancel?.(reason),
+          },
+          strategy,
+        );
+      }
+    }
+    globalThis.ReadableStream = EagerPullReadableStream;
+    try {
+      const response = await composeAskrDocumentResponse(
+        upstream,
+        "<html><head><!--askr-head--></head><body><!--askr-app--></body></html>",
+      );
+      const reader = response.body.getReader();
+      const results = await Promise.all(Array.from({ length: 8 }, () => reader.read()));
+
+      expect(reads).toBe(2);
+      expect(results.filter(({ done }) => done)).toHaveLength(5);
+      await new Promise((resolve) => setImmediate(resolve));
+    } finally {
+      globalThis.ReadableStream = NativeReadableStream;
+    }
   });
 
   it("should cancel the fragment stream when the composed body is cancelled", async () => {
