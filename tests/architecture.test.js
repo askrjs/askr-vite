@@ -39,6 +39,7 @@ describe("Vite package architecture", () => {
     expect(manifest.dependencies?.["vite-plus"]).toBeUndefined();
     expect(manifest.peerDependencies?.vite).toMatch(/[<>^~*]/);
     expect(manifest.peerDependencies?.["vite-plus"]).toMatch(/[<>^~*]/);
+    expect(manifest.peerDependencies?.["vite-plus"]).toBe("^0.2.8 || ^0.3.0");
     expect(manifest.peerDependenciesMeta).toMatchObject({
       vite: { optional: true },
       "vite-plus": { optional: true },

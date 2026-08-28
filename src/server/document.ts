@@ -132,6 +132,7 @@ function composeDocumentBody(
   let suffixPending = true;
   let reading = false;
   let cancelled = false;
+  let finished = false;
 
   return new ReadableStream<Uint8Array>({
     pull(controller) {
@@ -140,7 +141,7 @@ function composeDocumentBody(
         if (prefix) controller.enqueue(encoder.encode(prefix));
         return;
       }
-      if (reading) return;
+      if (reading || finished) return;
       reading = true;
       void reader.read().then(
         (part) => {
@@ -150,8 +151,10 @@ function composeDocumentBody(
             controller.enqueue(part.value);
             return;
           }
-          if (suffixPending && suffix) controller.enqueue(encoder.encode(suffix));
+          const finalSuffix = suffixPending ? suffix : "";
+          finished = true;
           suffixPending = false;
+          if (finalSuffix) controller.enqueue(encoder.encode(finalSuffix));
           controller.close();
         },
         (error) => {
