@@ -204,6 +204,65 @@ describe("Vite server integration", () => {
     expect((await reader.read()).done).toBe(true);
   });
 
+  it("should not read the fragment again when eager demand overlaps stream closure", async () => {
+    const upstream = fragment("<main>fragment</main>");
+    const source = upstream.body;
+    const getReader = source.getReader.bind(source);
+    let reads = 0;
+    Object.defineProperty(source, "getReader", {
+      value: () => {
+        const reader = getReader();
+        return {
+          read: () => {
+            reads += 1;
+            return reader.read();
+          },
+          cancel: (reason) => reader.cancel(reason),
+        };
+      },
+    });
+    const NativeReadableStream = globalThis.ReadableStream;
+    class EagerPullReadableStream extends NativeReadableStream {
+      constructor(underlyingSource, strategy) {
+        let wrappedController;
+        super(
+          {
+            pull(controller) {
+              wrappedController ??= {
+                enqueue(value) {
+                  controller.enqueue(value);
+                  if ((controller.desiredSize ?? 0) > 0) {
+                    void underlyingSource.pull(wrappedController);
+                  }
+                },
+                close: () => controller.close(),
+                error: (reason) => controller.error(reason),
+              };
+              return underlyingSource.pull(wrappedController);
+            },
+            cancel: (reason) => underlyingSource.cancel?.(reason),
+          },
+          strategy,
+        );
+      }
+    }
+    globalThis.ReadableStream = EagerPullReadableStream;
+    try {
+      const response = await composeAskrDocumentResponse(
+        upstream,
+        "<html><head><!--askr-head--></head><body><!--askr-app--></body></html>",
+      );
+      const reader = response.body.getReader();
+      const results = await Promise.all(Array.from({ length: 8 }, () => reader.read()));
+
+      expect(reads).toBe(2);
+      expect(results.filter(({ done }) => done)).toHaveLength(5);
+      await new Promise((resolve) => setImmediate(resolve));
+    } finally {
+      globalThis.ReadableStream = NativeReadableStream;
+    }
+  });
+
   it("should cancel the fragment stream when the composed body is cancelled", async () => {
     let cancelled;
     const source = new ReadableStream({
