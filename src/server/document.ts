@@ -1,5 +1,5 @@
 import type { ServerApp } from "@askrjs/server";
-import { normalizeAskrHead } from "./head";
+import { decodeAskrHeaderText, normalizeAskrHead } from "./head";
 
 interface ViteTelemetryFields {
   status?: number;
@@ -196,9 +196,22 @@ export async function composeAskrDocumentResponse(
     }
     const withHead = composeAskrHead(
       transformedDocument,
-      response.headers.get("x-askr-head") ?? "",
-      response.headers.get("x-askr-html-lang") ?? undefined,
-      response.headers.get("x-askr-html-dir") ?? undefined,
+      decodeAskrHeaderText(
+        response.headers.get("x-askr-head") ?? "",
+        response.headers.get("x-askr-encoding"),
+      ),
+      response.headers.has("x-askr-html-lang")
+        ? decodeAskrHeaderText(
+            response.headers.get("x-askr-html-lang")!,
+            response.headers.get("x-askr-encoding"),
+          )
+        : undefined,
+      response.headers.has("x-askr-html-dir")
+        ? decodeAskrHeaderText(
+            response.headers.get("x-askr-html-dir")!,
+            response.headers.get("x-askr-encoding"),
+          )
+        : undefined,
     );
     const appCount = markerCount(withHead);
     if (appCount !== 1) {
