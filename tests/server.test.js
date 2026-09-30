@@ -119,6 +119,14 @@ describe("Vite server integration", () => {
     ).toBe("<head><!--askr-head--></head><body><main /></body>");
   });
 
+  it("should insert replacement-token text literally at the app marker", () => {
+    const fragment = "$$ $& $` $'";
+
+    expect(insertAskrFragment("<body><!--askr-app--></body>", fragment)).toBe(
+      `<body>${fragment}</body>`,
+    );
+  });
+
   it.each(["<body></body>", "<!--askr-app--><!--askr-app-->"])(
     "should fail given a missing or duplicate marker",
     (document) => expect(() => insertAskrFragment(document, "content")).toThrow(/exactly one/),
@@ -300,6 +308,14 @@ describe("Vite server integration", () => {
       '<link data-askr-head="" rel="canonical" href="/docs">' +
       '<script data-askr-head="" type="application/ld+json">{"name":"Docs"}</script>';
     expect(composeAskrHead("<head><!--askr-head--></head>", head)).toBe(`<head>${head}</head>`);
+  });
+
+  it("should insert replacement-token text literally at the head marker", () => {
+    const head = '<title data-askr-head="">$$ $& $` $\'</title>';
+
+    expect(composeAskrHead("<head><!--askr-head--></head>", head)).toBe(
+      '<head><title data-askr-head="">$$ $&amp; $` $\'</title></head>',
+    );
   });
 
   it.each([

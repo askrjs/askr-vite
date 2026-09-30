@@ -1,6 +1,7 @@
 import { parseFragment, serialize, type DefaultTreeAdapterMap } from "parse5";
 
 const htmlNamespace = "http://www.w3.org/1999/xhtml";
+const metadataEncoding = "base64url-v1";
 const linkAttributes = new Set([
   "as",
   "crossorigin",
@@ -110,4 +111,17 @@ export function normalizeAskrHead(head: string): string {
     validateHeadElement(node);
   }
   return serialize(fragment);
+}
+
+export function decodeAskrHeaderText(value: string, encoding: string | null): string {
+  if (encoding === null) return value;
+  if (encoding !== metadataEncoding)
+    throw new TypeError(`Unsupported Askr metadata encoding: ${encoding}`);
+
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 }

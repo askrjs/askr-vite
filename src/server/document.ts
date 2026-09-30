@@ -1,5 +1,5 @@
 import type { ServerApp } from "@askrjs/server";
-import { normalizeAskrHead } from "./head";
+import { decodeAskrHeaderText, normalizeAskrHead } from "./head";
 
 interface ViteTelemetryFields {
   status?: number;
@@ -59,7 +59,7 @@ export function insertAskrFragment(document: string, fragment: string): string {
       `index.html must contain exactly one ${ASKR_APP_MARKER} marker; found ${count}.`,
     );
   }
-  return document.replace(ASKR_APP_MARKER, fragment);
+  return document.replace(ASKR_APP_MARKER, () => fragment);
 }
 
 /**
@@ -72,7 +72,8 @@ export function composeAskrHead(
   lang?: string,
   dir?: string,
 ): string {
-  let output = document.replace(ASKR_HEAD_MARKER, normalizeAskrHead(head));
+  const normalizedHead = normalizeAskrHead(head);
+  let output = document.replace(ASKR_HEAD_MARKER, () => normalizedHead);
   if (lang) output = patchHtmlAttribute(output, "lang", lang);
   if (dir) output = patchHtmlAttribute(output, "dir", dir);
   return output;
@@ -196,9 +197,22 @@ export async function composeAskrDocumentResponse(
     }
     const withHead = composeAskrHead(
       transformedDocument,
-      response.headers.get("x-askr-head") ?? "",
-      response.headers.get("x-askr-html-lang") ?? undefined,
-      response.headers.get("x-askr-html-dir") ?? undefined,
+      decodeAskrHeaderText(
+        response.headers.get("x-askr-head") ?? "",
+        response.headers.get("x-askr-encoding"),
+      ),
+      response.headers.has("x-askr-html-lang")
+        ? decodeAskrHeaderText(
+            response.headers.get("x-askr-html-lang")!,
+            response.headers.get("x-askr-encoding"),
+          )
+        : undefined,
+      response.headers.has("x-askr-html-dir")
+        ? decodeAskrHeaderText(
+            response.headers.get("x-askr-html-dir")!,
+            response.headers.get("x-askr-encoding"),
+          )
+        : undefined,
     );
     const appCount = markerCount(withHead);
     if (appCount !== 1) {
