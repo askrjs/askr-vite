@@ -11,11 +11,30 @@ framework's JSX and template conventions inside a normal Vite app.
 ## Install
 
 ```bash
-npm install -D @askrjs/vite vite
+npm install -D @askrjs/vite vite@8.2.2
 # or
-npm install -D @askrjs/vite vite-plus
+npm install -D @askrjs/vite vite-plus@1.1.0 vite@npm:@voidzero-dev/vite-plus-core@1.1.0
 npm install @askrjs/askr
 ```
+
+These commands require the plugin release containing the updated peer ranges.
+The published `@askrjs/vite@0.4.1` metadata excludes Vite+ 1.1.0; the
+[minimal Vite+ starter](examples/vite-plus/README.md) uses a packed artifact from
+this checkout until that fix is released.
+
+The installed-package browser suite qualifies this matrix:
+
+| Toolchain   | `vite` dependency                        | Configuration import |
+| ----------- | ---------------------------------------- | -------------------- |
+| Vite 8.2.2  | `vite@8.2.2`                             | `vite`               |
+| Vite+ 0.3.1 | `npm:@voidzero-dev/vite-plus-core@0.3.1` | `vite-plus`          |
+| Vite+ 1.1.0 | `npm:@voidzero-dev/vite-plus-core@1.1.0` | `vite-plus`          |
+
+Each consumer installs normally with matching peers and exercises JSX, browser
+HMR without a document reload, server document composition, production client
+and server builds, and responsive-image generation. Image declarations require
+a production build; image processing during development is not supported.
+The low versions in the `vite` peer range describe Vite+ core aliases.
 
 ## Use
 
@@ -28,6 +47,8 @@ export default defineConfig({
   plugins: [askr(), askrServer({ entry: "./src/server/entry-server.ts" })],
 });
 ```
+
+For Vite+, import `defineConfig` from `vite-plus` and use `vp dev` and `vp build`.
 
 `askr({ optimizeTemplates: true })` optionally hoists repeated static
 `class`, `className`, and `style` literals from parsed JSX-runtime property

@@ -47,8 +47,9 @@
   "scripts": {
     "build": "vp pack",
     "dev": "vp pack --watch",
-    "test": "npm run test:unit",
+    "test": "npm run test:unit && npm run test:browser",
     "test:unit": "vp test run -c vitest.config.ts",
+    "test:browser": "npm run build && playwright test",
     "test:publint": "publint",
     "fmt": "vp fmt .",
     "lint": "vp lint .",
@@ -66,6 +67,7 @@
   "devDependencies": {
     "@askrjs/askr": ">=0.4.0 <0.5.0",
     "@askrjs/server": ">=0.4.0 <0.5.0",
+    "@playwright/test": "1.63.0",
     "@types/node": "^26.3.0",
     "publint": "^0.3.24",
     "sharp": "^0.35.3",
@@ -77,8 +79,8 @@
   "peerDependencies": {
     "@askrjs/askr": ">=0.4.0 <0.5.0",
     "sharp": "^0.35.3",
-    "vite": "^8.2.2",
-    "vite-plus": "^0.3.1"
+    "vite": "^8.2.2 || ^0.3.1 || ^1.1.0",
+    "vite-plus": "^0.3.1 || ^1.1.0"
   },
   "peerDependenciesMeta": {
     "sharp": {

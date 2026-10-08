@@ -1,0 +1,19 @@
+{
+  "name": "askr-vite-plus-starter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev --config askr.config.ts",
+    "build": "vp build --config askr.config.ts",
+    "check": "vp lint src tests",
+    "test": "vp test run --config askr.config.ts"
+  },
+  "dependencies": {
+    "@askrjs/askr": "0.4.3"
+  },
+  "devDependencies": {
+    "@askrjs/vite": "file:../../askrjs-vite-0.4.1.tgz",
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.1.0",
+    "vite-plus": "1.1.0"
+  }
+}

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- Accept Vite+ 1.1.x and matching Vite+ core aliases as optional build-tool peers.
+  Qualify regular Vite 8.2.2 and Vite+ 0.3.1/1.1.0 with clean installed consumers,
+  browser HMR, server builds, and responsive images.
+
+### Added
+
+- Include a minimal Vite+ starter using `vp` for development, lint checks,
+  tests, and builds against the checkout's packed artifact.
+
 ## 0.4.1 - 2026-09-30
 
 ### Fixed
