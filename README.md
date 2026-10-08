@@ -17,10 +17,9 @@ npm install -D @askrjs/vite vite-plus@1.1.0 vite@npm:@voidzero-dev/vite-plus-cor
 npm install @askrjs/askr
 ```
 
-These commands require the plugin release containing the updated peer ranges.
-The published `@askrjs/vite@0.4.1` metadata excludes Vite+ 1.1.0; the
+Use `@askrjs/vite@0.4.2` or newer for these peer ranges. The
 [minimal Vite+ starter](examples/vite-plus/README.md) uses a packed artifact from
-this checkout until that fix is released.
+this checkout.
 
 The installed-package browser suite qualifies this matrix:
 

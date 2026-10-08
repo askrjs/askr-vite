@@ -12,7 +12,7 @@
     "@askrjs/askr": "0.4.3"
   },
   "devDependencies": {
-    "@askrjs/vite": "file:../../askrjs-vite-0.4.1.tgz",
+    "@askrjs/vite": "file:../../askrjs-vite-0.4.2.tgz",
     "vite": "npm:@voidzero-dev/vite-plus-core@1.1.0",
     "vite-plus": "1.1.0"
   }

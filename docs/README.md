@@ -66,9 +66,9 @@ npm install @askrjs/askr
 Vite+ owns the `vite` alias as well as the `vp` command. Use matching core and
 Vite+ versions and import `defineConfig` from `vite-plus`. The checkout is
 qualified with Vite 8.2.2, Vite+ 0.3.1, and Vite+ 1.1.0 through normal packed
-installs, JSX/HMR, server integration, and production image builds. Published
-0.4.1 does not yet contain the updated peers; follow the
-[checkout starter](../examples/vite-plus/README.md) until the fix is released.
+installs, JSX/HMR, server integration, and production image builds. These peer
+ranges are available from `@askrjs/vite@0.4.2`; the
+[checkout starter](../examples/vite-plus/README.md) uses the packed checkout.
 
 ## See also
 

@@ -4,9 +4,8 @@ This minimal island uses Vite+ 1.1.0 for development, production builds, lint
 checks, and Vitest tests. The `vite` dependency is the matching Vite+ core alias;
 do not replace it with regular Vite when using this toolchain.
 
-The starter consumes a packed artifact from this checkout. The published
-`@askrjs/vite@0.4.1` peer metadata excludes Vite+ 1.1.0; use the checkout artifact
-until a release containing the compatibility fix is published.
+The starter consumes a packed artifact from this checkout. Vite+ 1.1.0 peer
+compatibility is available from `@askrjs/vite@0.4.2`.
 
 From the repository root:
 
