@@ -2,7 +2,7 @@ import { execFile, spawn } from "node:child_process";
 import { cp, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { promisify } from "node:util";
+import { promisify, stripVTControlCharacters } from "node:util";
 import { test, expect } from "@playwright/test";
 import sharp from "sharp";
 import { readPackRecord } from "../pack-result.js";
@@ -78,7 +78,7 @@ async function startDev(root, toolchain) {
     );
     const output = (chunk) => {
       logs += String(chunk);
-      const match = logs.match(/http:\/\/127\.0\.0\.1:\d+\//);
+      const match = stripVTControlCharacters(logs).match(/http:\/\/127\.0\.0\.1:\d+\//);
       if (match) {
         clearTimeout(timeout);
         resolve(match[0]);
@@ -138,6 +138,10 @@ for (const toolchain of matrix) {
         await readFile(join(root, "node_modules/vite/package.json"), "utf8"),
       );
       expect(installed.version).toBe(toolchain.dependencies.vite.split("@").at(-1));
+      await cp(
+        join(import.meta.dirname, "../../examples/vite-plus/tsconfig.json"),
+        join(root, "tsconfig.json"),
+      );
       await writeFile(
         join(root, "vite.config.ts"),
         [
