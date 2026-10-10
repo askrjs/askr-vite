@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createServer } from "vite";
-import { describe, expect, it, vi } from "vitest";
+import { createServer } from "vite-plus";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { askrVitePlugin } from "../src/jsx-plugin.ts";
 import { traceSourcePosition } from "../src/source-map-rewrites.ts";
 import { optimizeTemplateOutput } from "../src/template-optimizer.ts";

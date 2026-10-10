@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-10
+
 ### Breaking changes
 
 - Keep the named `askr` factory at the root; remove the duplicate default and
@@ -39,6 +41,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Standardize first-party tests and configuration examples on Vite+ imports.
+  Keep Vite+ 0.3.3/MSW 2 as the Askr setup path; plain Vite remains an internal
+  compatibility control for the existing public plugin contract.
+
+- Installed mock/test toolchain coverage using native Core/Fetch requests, real
+  MSW browser workers, loading/error/retry, HMR and interception cleanup. Qualify
+  Vite+ 0.3.3/MSW 2.15.0 as the primary Askr recipe using its built-in runner
+  with the exact upstream alias-peer diagnostic. Keep plain Vite
+  8.2.2/Vitest 5.0.3/MSW 2.15.0 as a peer-clean secondary compatibility control
+  and Vite+ 1.1.0 as a separate runtime characterization, not a required upgrade.
+- Explicit MSW 3/Vite+ and MSW 3/Vitest mocker peer-boundary regressions, plus
+  development-only opt-in MSW 2 setup in the Vite+ starter. No plugin runtime,
+  public API, peer range or production dependency changes.
+- Pin the existing three-OS CI matrix to the qualified Node 24.21.0 and npm
+  12.0.1 resolver so installed-toolchain graph assertions run with the recorded
+  tool versions.
 - Strict normally installed TypeScript 6 and 7 consumers covering all retained and
   retired public names, virtual server types, private paths and runtime namespaces.
 - Real installed watch/recovery coverage for Vite 8.2.2 and Vite+ 0.3.3/1.1.0,
@@ -47,6 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compatible development lock corrections for Vite+ 0.3.3,
   `tinypool` 2.1.2, `source-map-js` 1.2.2 and `sharp` 0.35.5. Existing toolchain ranges remain;
   no runtime dependency range or package version changes.
+
+### Development
+
+- First-party development workflows use Vite+; specialized compiler, runtime,
+  browser, and package checks remain part of validation.
 
 ## 0.4.2 - 2026-10-08
 

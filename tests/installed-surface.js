@@ -43,8 +43,8 @@ try {
       type: "module",
       dependencies: {
         "@askrjs/vite": tarball,
-        "@askrjs/askr": ">=0.4.0 <0.5.0",
-        "@askrjs/server": ">=0.4.0 <0.5.0",
+        "@askrjs/askr": ">=0.5.0 <0.6.0",
+        "@askrjs/server": ">=0.5.0 <0.6.0",
         "@types/node": "^26.3.0",
         vite: "npm:@voidzero-dev/vite-plus-core@0.3.3",
         "vite-plus": "0.3.3",
