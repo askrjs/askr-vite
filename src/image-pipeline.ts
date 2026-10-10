@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ResolvedConfig } from "vite";
 import { imageDeclarations } from "./image-declarations";
 import {
@@ -15,6 +16,7 @@ import {
   declarationKey,
   defaultSharpLoader,
   processImage,
+  readImageSource,
   type AssetPluginContext,
   type EmittedVariant,
   type ProcessedImage,
@@ -57,11 +59,13 @@ function imageExpression(processed: ProcessedImage): string {
 }
 
 function builtUrl(base: string, fileName: string): string {
+  // Whitespace in asset filenames must not become srcset grammar separators.
+  const encodedFileName = encodeURI(fileName);
   if (/^https?:\/\//.test(base))
-    return new URL(fileName, base.endsWith("/") ? base : `${base}/`).href;
+    return new URL(encodedFileName, base.endsWith("/") ? base : `${base}/`).href;
   if (base === "" || base === "./" || base === ".")
-    return `${base === "." ? "./" : base}${fileName}`;
-  return `${base.endsWith("/") ? base : `${base}/`}${fileName}`;
+    return `${base === "." ? "./" : base}${encodedFileName}`;
+  return `${base.endsWith("/") ? base : `${base}/`}${encodedFileName}`;
 }
 
 function responsiveMetadata(
@@ -105,6 +109,11 @@ export class ImagePipeline {
     this.#config = config;
   }
 
+  beginBuild(): void {
+    // Emission references belong to one build; encoded bytes remain in the disk cache.
+    this.#processed.clear();
+  }
+
   async transform(
     context: AssetPluginContext,
     code: string,
@@ -128,12 +137,15 @@ export class ImagePipeline {
     let transformed = code;
     const edits: TextEdit[] = [];
     for (const declaration of [...found].reverse()) {
-      const sourcePath = path.resolve(path.dirname(id.split("?", 1)[0]!), declaration.source);
+      const sourcePath = fileURLToPath(
+        new URL(declaration.source, pathToFileURL(id.split("?", 1)[0]!)),
+      );
+      context.addWatchFile?.(sourcePath);
       const key = declarationKey(sourcePath, declaration.options);
       let processed = this.#processed.get(key);
       if (processed) {
         const sourceHash = createHash("sha256")
-          .update(await fs.readFile(sourcePath))
+          .update(await readImageSource(sourcePath))
           .digest("hex");
         if (sourceHash !== processed.sourceHash) processed = undefined;
       }
@@ -156,7 +168,11 @@ export class ImagePipeline {
   }
 
   async writeMetadata(context: AssetPluginContext): Promise<void> {
-    if (!this.#config || this.#processed.size === 0) return;
+    if (!this.#config) return;
+    // Only a client watch rebuild can retire the preceding declaration set.
+    // An unrelated SSR build must preserve the checked client metadata.
+    if (this.#processed.size === 0 && (!this.#config.build?.watch || this.#config.build.ssr))
+      return;
     const entries: Record<string, ImageMetadataEntry> = {};
     for (const processed of [...this.#processed.values()].sort((left, right) =>
       left.declarationKey.localeCompare(right.declarationKey),

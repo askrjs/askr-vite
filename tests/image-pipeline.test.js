@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -10,6 +11,7 @@ import { image as nodeImage } from "../src/image-node.ts";
 import { ImagePipeline } from "../src/image-pipeline.ts";
 import { askr } from "../src/index.ts";
 import { traceSourcePosition } from "../src/source-map-rewrites.ts";
+import { nextWatchBuild, startImageWatcher } from "./fixtures/image-watch.js";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const temporaryDirectories = [];
@@ -35,10 +37,12 @@ async function files(directory, prefix = "") {
 async function createFixture({
   width = 500,
   height = 300,
+  directoryName = "",
   declarations = 'const hero = image(new URL("./hero.jpg", import.meta.url), { widths: [100, 200, 800] });\nglobalThis.__hero = hero;',
 } = {}) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "askr-vite-images-"));
-  temporaryDirectories.push(root);
+  const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "askr-vite-images-"));
+  temporaryDirectories.push(temporaryRoot);
+  const root = path.join(temporaryRoot, directoryName);
   await fs.mkdir(path.join(root, "src"), { recursive: true });
   await fs.mkdir(path.join(root, "public"), { recursive: true });
   await fs.writeFile(
@@ -436,4 +440,422 @@ it("should fail clearly when direct Node SSG metadata is missing", async () => {
   expect(() => nodeImage(pathToFileURL(path.join(root, "src/hero.jpg")), { widths: [1] })).toThrow(
     /metadata is missing|no built image declaration/i,
   );
+});
+
+async function watchedMetadata(root) {
+  return JSON.parse(
+    await fs.readFile(
+      path.join(root, "node_modules/.cache/@askrjs/vite/images/metadata.json"),
+      "utf8",
+    ),
+  );
+}
+
+const initialSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"><rect width="100" height="80" fill="red"/></svg>';
+const changedSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="160"><rect width="200" height="160" fill="blue"/></svg>';
+const svgDeclaration =
+  'import { image } from "@askrjs/vite/image";\nexport const hero = image(new URL("./hero.svg", import.meta.url));\n';
+
+describe.each([
+  ["Vite", viteBuild],
+  ["Vite+", vitePlusBuild],
+])("responsive image build watch with %s", (_name, build) => {
+  it("should rebuild from an atomic source-image replacement without touching its declaring module", async () => {
+    const root = await createFixture();
+    const entryPath = path.join(root, "src/main.ts");
+    const sourcePath = path.join(root, "src/hero.svg");
+    await fs.writeFile(entryPath, svgDeclaration);
+    await fs.writeFile(sourcePath, initialSvg);
+    const watcher = await startImageWatcher(
+      root,
+      build,
+      askr({ images: true, transformJsx: false }),
+    );
+    try {
+      await nextWatchBuild(watcher);
+      const before = Object.values((await watchedMetadata(root)).entries)[0];
+      expect(before.image).toMatchObject({ width: 100, height: 80 });
+      const rebuilt = nextWatchBuild(watcher);
+      await fs.writeFile(path.join(root, "src/replacement.svg"), changedSvg);
+      await fs.rename(path.join(root, "src/replacement.svg"), sourcePath);
+      await rebuilt;
+      const after = Object.values((await watchedMetadata(root)).entries)[0];
+      expect(after.sourceHash).not.toBe(before.sourceHash);
+      expect(after.image.src).not.toBe(before.image.src);
+      expect(after.image).toMatchObject({ width: 200, height: 160 });
+      expect(
+        await fs.readFile(
+          path.join(root, "dist", after.image.src.replace(/^\/docs\//, "")),
+          "utf8",
+        ),
+      ).toBe(changedSvg);
+      expect(await fs.readFile(entryPath, "utf8")).toBe(svgDeclaration);
+      const missing = expect(nextWatchBuild(watcher)).rejects.toThrow(
+        /@askrjs\/vite.*hero\.svg.*Restore.*rebuild/s,
+      );
+      await fs.unlink(sourcePath);
+      await missing;
+      const recovered = nextWatchBuild(watcher);
+      await fs.writeFile(sourcePath, initialSvg);
+      await recovered;
+      const restored = Object.values((await watchedMetadata(root)).entries)[0];
+      expect(restored).toEqual(before);
+      expect(
+        await fs.readFile(
+          path.join(root, "dist", restored.image.src.replace(/^\/docs\//, "")),
+          "utf8",
+        ),
+      ).toBe(initialSvg);
+      const removed = nextWatchBuild(watcher);
+      await fs.writeFile(entryPath, "export const noImage = true;\n");
+      await removed;
+      expect((await watchedMetadata(root)).entries).toEqual({});
+    } finally {
+      await watcher.close();
+    }
+  }, 20_000);
+
+  it("should emit current-build image references across repeated entry-only watch rebuilds", async () => {
+    const root = await createFixture();
+    const entryPath = path.join(root, "src/main.ts");
+    await fs.writeFile(entryPath, svgDeclaration);
+    await fs.writeFile(path.join(root, "src/hero.svg"), initialSvg);
+    const watcher = await startImageWatcher(
+      root,
+      build,
+      askr({ images: true, transformJsx: false }),
+    );
+    try {
+      await nextWatchBuild(watcher);
+      const before = await watchedMetadata(root);
+      for (const revision of [1, 2]) {
+        const rebuilt = nextWatchBuild(watcher);
+        await fs.writeFile(entryPath, `${svgDeclaration}\nexport const revision = ${revision};\n`);
+        await rebuilt;
+        expect(await watchedMetadata(root)).toEqual(before);
+        const entry = Object.values(before.entries)[0];
+        expect(
+          await fs.readFile(
+            path.join(root, "dist", entry.image.src.replace(/^\/docs\//, "")),
+            "utf8",
+          ),
+        ).toBe(initialSvg);
+      }
+    } finally {
+      await watcher.close();
+    }
+  }, 20_000);
+
+  it("should preserve unchanged declaration-module metadata when another module rebuilds", async () => {
+    const root = await createFixture();
+    const heroModule = path.join(root, "src/hero.ts");
+    await fs.writeFile(heroModule, svgDeclaration);
+    await fs.writeFile(path.join(root, "src/badge.ts"), svgDeclaration.replaceAll("hero", "badge"));
+    await fs.writeFile(
+      path.join(root, "src/main.ts"),
+      'export { hero } from "./hero";\nexport { badge } from "./badge";\n',
+    );
+    await fs.writeFile(path.join(root, "src/hero.svg"), initialSvg);
+    await fs.writeFile(path.join(root, "src/badge.svg"), changedSvg);
+    const watcher = await startImageWatcher(
+      root,
+      build,
+      askr({ images: true, transformJsx: false }),
+    );
+    try {
+      await nextWatchBuild(watcher);
+      const before = await watchedMetadata(root);
+      expect(Object.keys(before.entries)).toHaveLength(2);
+      const rebuilt = nextWatchBuild(watcher);
+      await fs.writeFile(heroModule, `${svgDeclaration}\nexport const revision = 1;\n`);
+      await rebuilt;
+      expect(await watchedMetadata(root)).toEqual(before);
+      for (const entry of Object.values(before.entries)) {
+        expect(
+          await fs.readFile(
+            path.join(root, "dist", entry.image.src.replace(/^\/docs\//, "")),
+            "utf8",
+          ),
+        ).toBe(entry.image.width === 100 ? initialSvg : changedSvg);
+      }
+    } finally {
+      await watcher.close();
+    }
+  }, 20_000);
+});
+
+it("should retain a captured in-flight source snapshot and recover after source removal and recreation", async () => {
+  const root = await createFixture();
+  const sourcePath = path.join(root, "src/hero.jpg");
+  const initialBytes = await fs.readFile(sourcePath);
+  const entered = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const pipeline = new ImagePipeline({}, async () => {
+    entered.resolve();
+    await release.promise;
+    return sharp;
+  });
+  pipeline.configure({ root, command: "build", base: "/" });
+  const emitted = new Map();
+  const context = {
+    emitFile(file) {
+      const reference = `asset${emitted.size}`;
+      emitted.set(reference, file);
+      return reference;
+    },
+    getFileName(reference) {
+      return emitted.get(reference).name;
+    },
+  };
+  const code =
+    'import { image } from "@askrjs/vite/image"; image(new URL("./hero.jpg", import.meta.url), { widths: [100] });';
+  const captured = pipeline.transform(context, code, path.join(root, "src/main.ts"));
+  try {
+    await entered.promise;
+    await fs.unlink(sourcePath);
+    await expect(pipeline.transform(context, code, path.join(root, "src/main.ts"))).rejects.toThrow(
+      /hero\.jpg/,
+    );
+    await sharp({ create: { width: 320, height: 240, channels: 3, background: "orange" } })
+      .jpeg()
+      .toFile(sourcePath);
+  } finally {
+    release.resolve();
+  }
+  await expect(captured).resolves.toContain("width:500,height:300");
+  await pipeline.writeMetadata(context);
+  const capturedEntry = Object.values((await watchedMetadata(root)).entries)[0];
+  expect(capturedEntry.sourceHash).toBe(createHash("sha256").update(initialBytes).digest("hex"));
+  expect(capturedEntry.image).toMatchObject({ width: 500, height: 300 });
+  await expect(
+    pipeline.transform(context, code, path.join(root, "src/main.ts")),
+  ).resolves.toContain("width:320,height:240");
+  await pipeline.writeMetadata(context);
+  const currentEntry = Object.values((await watchedMetadata(root)).entries)[0];
+  expect(currentEntry.sourceHash).toBe(
+    createHash("sha256")
+      .update(await fs.readFile(sourcePath))
+      .digest("hex"),
+  );
+  expect(currentEntry.sourceHash).not.toBe(capturedEntry.sourceHash);
+  expect(currentEntry.image).toMatchObject({ width: 320, height: 240 });
+});
+
+it("should reject malformed checked metadata with a rebuild diagnostic and recover from a valid rebuild", async () => {
+  const root = await createFixture();
+  await buildFixture(root);
+  const metadataPath = path.join(root, "node_modules/.cache/@askrjs/vite/images/metadata.json");
+  const valid = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+  const key = Object.keys(valid.entries)[0];
+  const cases = [
+    ["invalid JSON", "{"],
+    ["null root", "null"],
+    ["array root", "[]"],
+    ["wrong version", { ...valid, version: 1 }],
+    ["missing entries", { version: valid.version }],
+    ["array entries", { ...valid, entries: [] }],
+    ["null entry", { ...valid, entries: { [key]: null } }],
+    [
+      "missing image",
+      { ...valid, entries: { [key]: { ...valid.entries[key], image: undefined } } },
+    ],
+    ["null image", { ...valid, entries: { [key]: { ...valid.entries[key], image: null } } }],
+    [
+      "invalid width",
+      {
+        ...valid,
+        entries: {
+          [key]: { ...valid.entries[key], image: { ...valid.entries[key].image, width: 0 } },
+        },
+      },
+    ],
+    [
+      "invalid source URL",
+      {
+        ...valid,
+        entries: {
+          [key]: { ...valid.entries[key], image: { ...valid.entries[key].image, src: 1 } },
+        },
+      },
+    ],
+    [
+      "non-array sources",
+      {
+        ...valid,
+        entries: {
+          [key]: { ...valid.entries[key], image: { ...valid.entries[key].image, sources: {} } },
+        },
+      },
+    ],
+    [
+      "malformed source",
+      {
+        ...valid,
+        entries: {
+          [key]: {
+            ...valid.entries[key],
+            image: { ...valid.entries[key].image, sources: [{ type: "image/webp", srcset: null }] },
+          },
+        },
+      },
+    ],
+  ];
+  const failures = [];
+  for (const [name, record] of cases) {
+    await fs.writeFile(metadataPath, typeof record === "string" ? record : JSON.stringify(record));
+    let diagnostic;
+    try {
+      nodeImage(pathToFileURL(path.join(root, "src/hero.jpg")), { widths: [100, 200, 800] });
+    } catch (error) {
+      diagnostic = error.message;
+    }
+    if (!diagnostic || !/@askrjs\/vite.*metadata.*[Rr](?:e-?run|ebuild)/s.test(diagnostic))
+      failures.push({ name, diagnostic: diagnostic ?? "No error; malformed metadata accepted" });
+  }
+  await buildFixture(root);
+  expect(
+    nodeImage(pathToFileURL(path.join(root, "src/hero.jpg")), { widths: [100, 200, 800] }),
+  ).toEqual(valid.entries[key].image);
+  expect(failures).toEqual([]);
+});
+
+it("should preserve checked client metadata during an unrelated SSR build", async () => {
+  const root = await createFixture();
+  const client = await buildFixture(root);
+  await fs.writeFile(path.join(root, "src/server.ts"), "export const server = true;\n");
+  await viteBuild({
+    root,
+    configFile: false,
+    logLevel: "silent",
+    plugins: [askr({ images: true })],
+    build: {
+      rollupOptions: { external: [/^@askrjs\//] },
+      ssr: path.join(root, "src/server.ts"),
+      outDir: path.join(root, "dist/server"),
+    },
+  });
+  expect(await watchedMetadata(root)).toEqual(client.metadata);
+  expect(
+    nodeImage(pathToFileURL(path.join(root, "src/hero.jpg")), { widths: [100, 200, 800] }),
+  ).toEqual(Object.values(client.metadata.entries)[0].image);
+});
+
+it("should preserve positive fractional SVG dimensions in checked client-to-Node metadata", async () => {
+  const root = await createFixture({
+    declarations:
+      'const hero = image(new URL("./icon.svg", import.meta.url)); globalThis.__hero = hero;',
+  });
+  const sourcePath = path.join(root, "src/icon.svg");
+  await fs.writeFile(
+    sourcePath,
+    '<svg xmlns="http://www.w3.org/2000/svg" width="100.5" height="80.25"><rect width="100%" height="100%"/></svg>',
+  );
+  const { metadata } = await buildFixture(root);
+  const entry = Object.values(metadata.entries)[0];
+  expect(entry.image).toMatchObject({ width: 100.5, height: 80.25 });
+  expect(nodeImage(pathToFileURL(sourcePath))).toEqual(entry.image);
+});
+
+it("should build images from nested Unicode and URL-reserved paths with original source maps", async () => {
+  const root = await createFixture({ directoryName: "nested space Ω # %" });
+  const sourcePath = path.join(root, "src/hero # % 雪.svg");
+  await fs.writeFile(sourcePath, initialSvg);
+  const id = path.join(root, "src/unusual.tsx");
+  const source = [
+    'import { image } from "@askrjs/vite/image";',
+    'export const hero = image(new URL("./hero%20%23%20%25%20%E9%9B%AA.svg", import.meta.url));',
+    'export const marker = "unusual-source";',
+    'export const View = () => <><img class="shared" src={hero.src}/><img class="shared" src={hero.src}/></>;',
+  ].join("\n");
+  await fs.writeFile(id, source);
+  const result = await viteBuild({
+    root,
+    configFile: false,
+    logLevel: "silent",
+    plugins: [askr({ images: true, optimizeTemplates: true })],
+    build: {
+      lib: { entry: id, formats: ["es"], fileName: "unusual" },
+      minify: false,
+      sourcemap: true,
+      rollupOptions: { external: [/^@askrjs\//] },
+    },
+  });
+  const output = Array.isArray(result) ? result.flatMap((bundle) => bundle.output) : result.output;
+  const bundle = output.find((file) => file.type === "chunk");
+  const generated = positionOf(bundle.code, '"unusual-source"');
+  expect(traceSourcePosition(bundle.map, generated.line, generated.column)).toEqual(
+    positionOf(source, '"unusual-source"'),
+  );
+  const sourceIndex = bundle.map.sources.findIndex((name) => name.endsWith("/unusual.tsx"));
+  expect(sourceIndex).toBeGreaterThanOrEqual(0);
+  expect(bundle.map.sourcesContent[sourceIndex]).toBe(source);
+  const record = Object.values((await watchedMetadata(root)).entries)[0];
+  expect(record.sourcePath).toBe(sourcePath);
+  expect(nodeImage(pathToFileURL(sourcePath))).toEqual(record.image);
+  expect(
+    await fs.readFile(
+      path.join(root, "dist", decodeURIComponent(record.image.src.replace(/^\//, ""))),
+      "utf8",
+    ),
+  ).toBe(initialSvg);
+});
+
+it("should compose identical plugin instances without duplicate JSX, image emission or lost source maps", async () => {
+  const root = await createFixture();
+  const id = path.join(root, "src/duplicate.tsx");
+  const source = [
+    'import { image } from "@askrjs/vite/image";',
+    'export const hero = image(new URL("./hero.jpg", import.meta.url), { widths: [100], formats: ["source"] });',
+    'export const marker = "duplicate-source";',
+    'export const View = () => <><img class="shared" src={hero.src}/><img class="shared" src={hero.src}/></>;',
+  ].join("\n");
+  await fs.writeFile(id, source);
+  const result = await viteBuild({
+    root,
+    configFile: false,
+    logLevel: "silent",
+    plugins: [
+      askr({ images: true, optimizeTemplates: true }),
+      askr({ images: true, optimizeTemplates: true }),
+    ],
+    build: {
+      lib: { entry: id, formats: ["es"], fileName: "duplicate" },
+      minify: false,
+      sourcemap: true,
+      rollupOptions: { external: [/^@askrjs\//] },
+    },
+  });
+  const output = Array.isArray(result) ? result.flatMap((bundle) => bundle.output) : result.output;
+  const bundle = output.find((file) => file.type === "chunk");
+  expect(bundle.code).not.toContain("<img");
+  expect(bundle.code).not.toContain("ROLLUP_FILE_URL");
+  expect(
+    output
+      .filter((file) => file.type === "asset" && file.fileName.endsWith(".jpg"))
+      .map((file) => file.fileName)
+      .sort(),
+  ).toEqual(["hero-100.jpg", "hero-500.jpg"]);
+  const generated = positionOf(bundle.code, '"duplicate-source"');
+  expect(traceSourcePosition(bundle.map, generated.line, generated.column)).toEqual(
+    positionOf(source, '"duplicate-source"'),
+  );
+  const record = Object.values((await watchedMetadata(root)).entries)[0];
+  expect(
+    nodeImage(pathToFileURL(path.join(root, "src/hero.jpg")), {
+      widths: [100],
+      formats: ["source"],
+    }),
+  ).toEqual(record.image);
+  await fs.writeFile(id, "export const Broken = () => <main>");
+  await expect(
+    viteBuild({
+      root,
+      configFile: false,
+      logLevel: "silent",
+      plugins: [askr(), askr()],
+      build: { lib: { entry: id, formats: ["es"] }, rollupOptions: { external: [/^@askrjs\//] } },
+    }),
+  ).rejects.toThrow(/duplicate\.tsx.*(?:Transform failed|Expected|Unexpected)/s);
 });

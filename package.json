@@ -17,7 +17,9 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md",
+    "docs"
   ],
   "type": "module",
   "sideEffects": false,
@@ -54,7 +56,7 @@
     "fmt": "vp fmt .",
     "lint": "vp lint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "pack:check": "node tests/package-artifacts.js",
+    "pack:check": "node tests/package-artifacts.js && node tests/installed-surface.js",
     "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:publint && npm run pack:check",
     "prepack": "npm run build",
     "prepublishOnly": "npm run check"
@@ -69,6 +71,7 @@
     "@askrjs/server": ">=0.4.0 <0.5.0",
     "@playwright/test": "1.63.0",
     "@types/node": "^26.3.0",
+    "@typescript/typescript6": "^6.0.2",
     "publint": "^0.3.24",
     "sharp": "^0.35.3",
     "typescript": "^7.0.2",

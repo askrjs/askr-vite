@@ -33,8 +33,8 @@ test.afterAll(async () => {
 const matrix = [
   { name: "Vite 8.2.2", dependencies: { vite: "8.2.2" }, package: "vite", cli: "bin/vite.js" },
   {
-    name: "Vite+ 0.3.1",
-    dependencies: { vite: "npm:@voidzero-dev/vite-plus-core@0.3.1", "vite-plus": "0.3.1" },
+    name: "Vite+ 0.3.3",
+    dependencies: { vite: "npm:@voidzero-dev/vite-plus-core@0.3.3", "vite-plus": "0.3.3" },
     package: "vite-plus",
     cli: "bin/vp",
   },
@@ -53,9 +53,12 @@ function application(label, images = false) {
       ? [
           'import { Image, image } from "@askrjs/vite/image";',
           'const hero = image(new URL("./hero.jpg", import.meta.url), { widths: [32, 64], formats: ["webp", "source"] });',
+          'const unusual = image(new URL("./hero%20%E9%9B%AA.jpg", import.meta.url), { widths: [32, 64], formats: ["webp", "source"] });',
+          "globalThis.__unusualImage = unusual;",
+          'globalThis.__renderNodeImage = (metadata) => createIsland({ root: "#node-image", component: () => <Image image={metadata} alt="Node metadata image" sizes="32px" /> });',
         ]
       : []),
-    `createIsland({ root: "#app", component: () => <main><h1>${label}</h1>${images ? '<Image image={hero} alt="Consumer image" />' : ""}</main> });`,
+    `createIsland({ root: "#app", component: () => <main><h1>${label}</h1>${images ? '<><Image image={hero} alt="Consumer image" /><Image image={unusual} alt="Unusual image" sizes="32px" /></>' : ""}</main> });`,
     "if (import.meta.hot) import.meta.hot.accept();",
   ].join("\n");
 }
@@ -127,7 +130,7 @@ for (const toolchain of matrix) {
           private: true,
           type: "module",
           dependencies: { "@askrjs/askr": "0.4.3" },
-          devDependencies: { "@askrjs/vite": tarball, sharp: "0.35.3", ...toolchain.dependencies },
+          devDependencies: { "@askrjs/vite": tarball, sharp: "0.35.5", ...toolchain.dependencies },
         }),
       );
       await exec(process.execPath, [npmCli, "install", "--no-audit", "--no-fund"], {
@@ -179,11 +182,82 @@ for (const toolchain of matrix) {
       await stopDev(dev.child);
       dev = undefined;
       await writeFile(join(root, "main.tsx"), application("Built consumer", true));
+      await sharp({ create: { width: 64, height: 48, channels: 3, background: "orange" } })
+        .jpeg()
+        .toFile(join(root, "hero 雪.jpg"));
       const cli = join(root, "node_modules", toolchain.package, toolchain.cli);
       await exec(process.execPath, [cli, "build"], { cwd: root, timeout: 60_000 });
       const assets = await readdir(join(root, "dist/assets"));
       expect(assets.some((file) => /hero-32-.*\.webp$/.test(file))).toBe(true);
       expect(assets.some((file) => /hero-64-.*\.jpg$/.test(file))).toBe(true);
+      await page.route("http://packed-consumer.test/**", async (route) => {
+        const pathname = decodeURIComponent(new URL(route.request().url()).pathname);
+        const file = join(root, "dist", pathname === "/" ? "index.html" : pathname);
+        const contentType = file.endsWith(".html")
+          ? "text/html"
+          : file.endsWith(".js")
+            ? "text/javascript"
+            : file.endsWith(".webp")
+              ? "image/webp"
+              : "image/jpeg";
+        try {
+          await route.fulfill({ body: await readFile(file), contentType });
+        } catch {
+          await route.fulfill({ status: 404, body: "Not found" });
+        }
+      });
+      await page.goto("http://packed-consumer.test/");
+      await expect(page.locator("h1")).toHaveText("Built consumer");
+      const clientImage = page.locator('img[alt="Unusual image"]');
+      await expect(clientImage).toHaveJSProperty("complete", true);
+      const clientSelected = await clientImage.evaluate((image) => image.currentSrc);
+      expect(clientSelected).toMatch(/hero%20%E9%9B%AA-32-.*\.webp$/);
+      expect(await clientImage.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+      const nodeMetadata = JSON.parse(
+        (
+          await exec(
+            process.execPath,
+            [
+              "--input-type=module",
+              "-e",
+              `import { image } from "@askrjs/vite/image"; import { pathToFileURL } from "node:url"; console.log(JSON.stringify(image(pathToFileURL(${JSON.stringify(join(root, "hero 雪.jpg"))}), { widths: [32, 64], formats: ["webp", "source"] })));`,
+            ],
+            { cwd: root, timeout: 30_000 },
+          )
+        ).stdout,
+      );
+      await page.evaluate((metadata) => {
+        const host = document.createElement("div");
+        host.id = "node-image";
+        document.body.append(host);
+        globalThis.__renderNodeImage(metadata);
+      }, nodeMetadata);
+      const nodeImage = page.locator('img[alt="Node metadata image"]');
+      await expect(nodeImage).toHaveJSProperty("complete", true);
+      const nodeSelected = await nodeImage.evaluate((image) => image.currentSrc);
+      expect(nodeSelected).toBe(clientSelected);
+      expect(await nodeImage.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+      const browserMetadata = await page.evaluate(() => globalThis.__unusualImage);
+      const normalizeUrl = (url) => new URL(url, "http://packed-consumer.test/").href;
+      expect(normalizeUrl(nodeMetadata.src)).toBe(normalizeUrl(browserMetadata.src));
+      const normalizeSrcset = (srcset) =>
+        srcset.split(",").map((candidate) => {
+          const separator = candidate.trim().lastIndexOf(" ");
+          return `${normalizeUrl(candidate.trim().slice(0, separator))} ${candidate.trim().slice(separator + 1)}`;
+        });
+      expect(normalizeSrcset(nodeMetadata.srcset)).toEqual(normalizeSrcset(browserMetadata.srcset));
+      expect(
+        nodeMetadata.sources.map((source) => ({
+          type: source.type,
+          srcset: normalizeSrcset(source.srcset),
+        })),
+      ).toEqual(
+        browserMetadata.sources.map((source) => ({
+          type: source.type,
+          srcset: normalizeSrcset(source.srcset),
+        })),
+      );
+
       await exec(
         process.execPath,
         [cli, "build", "--ssr", "server-entry.ts", "--outDir", "dist/server"],
@@ -204,6 +278,18 @@ for (const toolchain of matrix) {
       );
       expect(verify.stdout).toContain("<p>Server consumer</p>");
       expect(verify.stdout).toContain("/assets/");
+      for (const fixture of ["image-watch.js", "image-watch-consumer.mjs"]) {
+        await cp(join(import.meta.dirname, "../fixtures", fixture), join(root, fixture));
+      }
+      const watched = await exec(
+        process.execPath,
+        ["image-watch-consumer.mjs", toolchain.package],
+        {
+          cwd: root,
+          timeout: 60_000,
+        },
+      );
+      expect(watched.stdout).toContain(`PASS ${toolchain.package} installed image watch:`);
       expect(errors).toEqual([]);
     } finally {
       if (dev) await stopDev(dev.child);

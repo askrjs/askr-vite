@@ -6,6 +6,7 @@ import { Image } from "./image";
 import {
   IMAGE_METADATA_PATH,
   IMAGE_METADATA_VERSION,
+  type ImageMetadataEntry,
   type ImageMetadataRecord,
 } from "./image-metadata";
 import { normalizeDeclarationOptions } from "./image-options";
@@ -35,6 +36,48 @@ function metadataCandidates(sourcePath: string): string[] {
   return candidates;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isNonemptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isCheckedImage(value: unknown): value is ResponsiveImage {
+  return (
+    isRecord(value) &&
+    value.__askrImage === true &&
+    isNonemptyString(value.src) &&
+    typeof value.width === "number" &&
+    Number.isFinite(value.width) &&
+    value.width > 0 &&
+    typeof value.height === "number" &&
+    Number.isFinite(value.height) &&
+    value.height > 0 &&
+    (value.srcset === undefined || isNonemptyString(value.srcset)) &&
+    Array.isArray(value.sources) &&
+    value.sources.every(
+      (source) =>
+        isRecord(source) && isNonemptyString(source.type) && isNonemptyString(source.srcset),
+    )
+  );
+}
+
+function isCheckedEntry(value: unknown): value is ImageMetadataEntry {
+  return (
+    isRecord(value) &&
+    isNonemptyString(value.sourcePath) &&
+    typeof value.sourceHash === "string" &&
+    /^[a-f0-9]{64}$/.test(value.sourceHash) &&
+    typeof value.transformKey === "string" &&
+    /^[a-f0-9]{64}$/.test(value.transformKey) &&
+    isNonemptyString(value.encoder) &&
+    isRecord(value.declarationOptions) &&
+    isCheckedImage(value.image)
+  );
+}
+
 function readMetadata(sourcePath: string): ImageMetadataRecord {
   const metadataPath = metadataCandidates(sourcePath).find(existsSync);
   if (!metadataPath) {
@@ -42,20 +85,30 @@ function readMetadata(sourcePath: string): ImageMetadataRecord {
       "@askrjs/vite image metadata is missing. Run the Vite client build with askr({ images: true }) before direct Node SSR/SSG imports.",
     );
   }
-  let record: ImageMetadataRecord;
+  let record: unknown;
   try {
-    record = JSON.parse(readFileSync(metadataPath, "utf8")) as ImageMetadataRecord;
+    record = JSON.parse(readFileSync(metadataPath, "utf8"));
   } catch (error) {
-    throw new Error(`@askrjs/vite could not read checked image metadata at ${metadataPath}.`, {
-      cause: error,
-    });
+    throw new Error(
+      `@askrjs/vite could not read checked image metadata at ${metadataPath}. Re-run the Vite client build.`,
+      {
+        cause: error,
+      },
+    );
   }
-  if (record.version !== IMAGE_METADATA_VERSION || !record.entries) {
+  if (
+    !isRecord(record) ||
+    record.version !== IMAGE_METADATA_VERSION ||
+    !isRecord(record.entries) ||
+    !Object.entries(record.entries).every(
+      ([key, entry]) => /^[a-f0-9]{64}$/.test(key) && isCheckedEntry(entry),
+    )
+  ) {
     throw new Error(
       `@askrjs/vite image metadata at ${metadataPath} is incompatible. Re-run the Vite client build.`,
     );
   }
-  return record;
+  return record as unknown as ImageMetadataRecord;
 }
 
 function isResponsiveImage(value: unknown): value is ResponsiveImage {
@@ -95,7 +148,6 @@ export type {
   ImageFit,
   ImageOptions,
   ImageOutputFormat,
-  ImagePipelineOptions,
   ImageProps,
   ImageQualityOptions,
   ResponsiveImage,

@@ -1,4 +1,4 @@
-﻿# @askrjs/vite
+# @askrjs/vite
 
 [![CI](https://github.com/askrjs/askr-vite/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/askrjs/askr-vite/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/%40askrjs%2Fvite.svg)](https://www.npmjs.com/package/@askrjs/vite)
@@ -26,7 +26,7 @@ The installed-package browser suite qualifies this matrix:
 | Toolchain   | `vite` dependency                        | Configuration import |
 | ----------- | ---------------------------------------- | -------------------- |
 | Vite 8.2.2  | `vite@8.2.2`                             | `vite`               |
-| Vite+ 0.3.1 | `npm:@voidzero-dev/vite-plus-core@0.3.1` | `vite-plus`          |
+| Vite+ 0.3.3 | `npm:@voidzero-dev/vite-plus-core@0.3.3` | `vite-plus`          |
 | Vite+ 1.1.0 | `npm:@voidzero-dev/vite-plus-core@1.1.0` | `vite-plus`          |
 
 Each consumer installs normally with matching peers and exercises JSX, browser
@@ -123,3 +123,7 @@ the browser.
 - In `vite.config.ts` for any app that uses `@askrjs/askr`
 - When you want the Askr JSX and template transforms
 - When you are scaffolded from an Askr starter and need to understand the plugin boundary
+
+## Preparing for 0.5.0
+
+See the [migration guide](docs/migration-0.5.0.md) and [complete public API review](docs/0.5.0-public-api.md) for the canonical plugin, server and image entry points.

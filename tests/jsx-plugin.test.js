@@ -218,3 +218,31 @@ describe("Askr JSX plugin", () => {
     });
   }, 20_000);
 });
+
+it.each(["/src/space Ω.tsx", "C:\\app\\view.tsx"])(
+  "should preserve source identity for native-style JSX id %s",
+  async (id) => {
+    const source =
+      'export const first = <div class="shared"/>;\nexport const second = <span class="shared"/>;';
+    const transformed = await transformHook(askrVitePlugin({ optimizeTemplates: true })).call(
+      {
+        error(message) {
+          throw new Error(String(message));
+        },
+      },
+      source,
+      id,
+    );
+    const generated = positionOf(transformed.code, "export const second");
+    expect(traceSourcePosition(transformed.map, generated.line, generated.column)).toEqual(
+      positionOf(source, "export const second"),
+    );
+    expect(transformed.map.sourcesContent).toEqual([source]);
+    expect(transformed.map.sources).toEqual([id]);
+  },
+);
+
+it("should leave raw-query JSX content to its owning Vite loader", async () => {
+  const source = "export const View = () => <main/>;";
+  expect(await transformHook(askrVitePlugin()).call({}, source, "/src/view.tsx?raw")).toBeNull();
+});
