@@ -37,7 +37,6 @@ export interface AskrVitePluginOptions {
   transformJsx?: boolean;
   /** Hoist repeated JSX class/style literals using parsed compiled output. Defaults to `false`. */
   optimizeTemplates?: boolean;
-  ssrPrecompile?: boolean;
   /** Opt into declared responsive image transforms. */
   images?: boolean | ImagePipelineOptions;
 }
@@ -114,6 +113,9 @@ export function askrVitePlugin(options: AskrVitePluginOptions = {}): AskrVitePlu
     },
     configResolved(config) {
       imagePipeline?.configure(config);
+    },
+    buildStart() {
+      imagePipeline?.beginBuild();
     },
     async transform(code, id) {
       if (id.includes("node_modules")) return null;

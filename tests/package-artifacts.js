@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
@@ -13,7 +14,29 @@ const result = readPackRecord(
 );
 
 const packedFiles = new Set(result.files.map(({ path }) => normalize(path)));
-const imageExport = JSON.parse(readFileSync("package.json", "utf8")).exports["./image"];
+const exports = JSON.parse(readFileSync("package.json", "utf8")).exports;
+assert.deepEqual(exports, {
+  ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+  "./server": { types: "./dist/server.d.ts", import: "./dist/server.js" },
+  "./image": {
+    types: "./dist/image.d.ts",
+    node: "./dist/image-node.js",
+    browser: "./dist/image.js",
+    import: "./dist/image.js",
+    default: "./dist/image.js",
+  },
+  "./package.json": "./package.json",
+});
+function targets(value) {
+  return typeof value === "string" ? [value] : Object.values(value).flatMap(targets);
+}
+for (const target of targets(exports)) {
+  const file = normalize(target.replace(/^\.\//, ""));
+  if (!packedFiles.has(file))
+    throw new Error(`Public export target is missing from packed artifact: ${target}`);
+  readFileSync(file);
+}
+const imageExport = exports["./image"];
 if (
   !imageExport ||
   typeof imageExport !== "object" ||
@@ -55,3 +78,7 @@ for (const file of result.files) {
     }
   }
 }
+
+console.log(
+  `PASS all4 export keys/conditions and ${packedFiles.size} packed files with source-map targets`,
+);

@@ -47,7 +47,6 @@ export type {
   ImageFit,
   ImageOptions,
   ImageOutputFormat,
-  ImagePipelineOptions,
   ImageProps,
   ImageQualityOptions,
   ResponsiveImage,

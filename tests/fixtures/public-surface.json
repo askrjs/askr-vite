@@ -1,0 +1,170 @@
+[
+  {
+    "subpath": ".",
+    "name": "askr",
+    "typeOnly": false,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": ".",
+    "name": "askrVitePlugin",
+    "typeOnly": false,
+    "decision": "REMOVE"
+  },
+  {
+    "subpath": ".",
+    "name": "AskrVitePlugin",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": ".",
+    "name": "AskrVitePluginOptions",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": ".",
+    "name": "default",
+    "typeOnly": false,
+    "decision": "REMOVE"
+  },
+  {
+    "subpath": ".",
+    "name": "ImagePipelineOptions",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./server",
+    "name": "ASKR_APP_MARKER",
+    "typeOnly": false,
+    "decision": "REMOVE"
+  },
+  {
+    "subpath": "./server",
+    "name": "ASKR_HEAD_MARKER",
+    "typeOnly": false,
+    "decision": "REMOVE"
+  },
+  {
+    "subpath": "./server",
+    "name": "ASKR_SERVER_MODULE_ID",
+    "typeOnly": false,
+    "decision": "REMOVE"
+  },
+  {
+    "subpath": "./server",
+    "name": "AskrDocumentOptions",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./server",
+    "name": "askrServer",
+    "typeOnly": false,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./server",
+    "name": "AskrServerOptions",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./server",
+    "name": "AskrServerPlugin",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./server",
+    "name": "composeAskrDocumentResponse",
+    "typeOnly": false,
+    "decision": "REMOVE"
+  },
+  {
+    "subpath": "./server",
+    "name": "composeAskrHead",
+    "typeOnly": false,
+    "decision": "REMOVE"
+  },
+  {
+    "subpath": "./server",
+    "name": "createDocumentApp",
+    "typeOnly": false,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./server",
+    "name": "insertAskrFragment",
+    "typeOnly": false,
+    "decision": "REMOVE"
+  },
+  {
+    "subpath": "./server",
+    "name": "isAskrFragment",
+    "typeOnly": false,
+    "decision": "REMOVE"
+  },
+  {
+    "subpath": "./image",
+    "name": "image",
+    "typeOnly": false,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./image",
+    "name": "Image",
+    "typeOnly": false,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./image",
+    "name": "ImageFit",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./image",
+    "name": "ImageOptions",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./image",
+    "name": "ImageOutputFormat",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./image",
+    "name": "ImagePipelineOptions",
+    "typeOnly": true,
+    "decision": "MOVE"
+  },
+  {
+    "subpath": "./image",
+    "name": "ImageProps",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./image",
+    "name": "ImageQualityOptions",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./image",
+    "name": "ResponsiveImage",
+    "typeOnly": true,
+    "decision": "KEEP"
+  },
+  {
+    "subpath": "./image",
+    "name": "ResponsiveImageSource",
+    "typeOnly": true,
+    "decision": "KEEP"
+  }
+]
