@@ -66,7 +66,10 @@ function npmLogSnapshot(directory) {
   return entries
     .sort((left, right) => left.name.localeCompare(right.name))
     .map((entry) => {
-      if (!entry.isFile() || !/^[\dT_Z.-]+-(?:debug-\d+\.log|timing\.json)$/u.test(entry.name))
+      if (
+        !entry.isFile() ||
+        !/^[\dT_Z.-]+-(?:debug-\d+\.log|timing\.json|eresolve-report\.txt)$/u.test(entry.name)
+      )
         throw new Error("Unexpected npm diagnostic log entry.");
       const bytes = readNpmLog(join(directory, entry.name), NPM_LOG_TOTAL_LIMIT - total);
       total += bytes.length;
