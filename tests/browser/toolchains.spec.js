@@ -1,4 +1,14 @@
 import { execFile, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import {
+  closeSync,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -9,7 +19,95 @@ import sharp from "sharp";
 import { readPackRecord } from "../pack-result.js";
 
 const execFileAsync = promisify(execFile);
+const NPM_LOG_FILE_LIMIT = 16 * 1024 * 1024;
+const NPM_LOG_TOTAL_LIMIT = 32 * 1024 * 1024;
+
+// Read a finite snapshot even while npm is still appending its own log.
+function readNpmLog(path, remaining = NPM_LOG_TOTAL_LIMIT) {
+  if (!Number.isSafeInteger(remaining) || remaining < 0 || remaining > NPM_LOG_TOTAL_LIMIT)
+    throw new Error("Invalid remaining npm diagnostic log budget.");
+  const before = lstatSync(path);
+  if (!before.isFile() || before.isSymbolicLink() || before.size > NPM_LOG_FILE_LIMIT)
+    throw new Error("npm diagnostic log must be a bounded regular file.");
+  if (before.size > remaining) throw new Error("npm diagnostic logs exceeded their total limit.");
+  const descriptor = openSync(path, "r");
+  try {
+    const current = fstatSync(descriptor);
+    if (!current.isFile() || current.dev !== before.dev || current.ino !== before.ino)
+      throw new Error("npm diagnostic log identity changed.");
+    if (current.size > NPM_LOG_FILE_LIMIT)
+      throw new Error("npm diagnostic log exceeded its byte limit.");
+    if (current.size > remaining)
+      throw new Error("npm diagnostic logs exceeded their total limit.");
+    // A fixed-size snapshot never reads or allocates beyond the remaining total.
+    const buffer = Buffer.alloc(current.size);
+    let bytes = 0;
+    while (bytes < buffer.length) {
+      const count = readSync(descriptor, buffer, bytes, buffer.length - bytes, null);
+      if (!count) break;
+      bytes += count;
+    }
+    const after = fstatSync(descriptor);
+    if (!after.isFile() || after.dev !== current.dev || after.ino !== current.ino)
+      throw new Error("npm diagnostic log identity changed.");
+    if (after.size > NPM_LOG_FILE_LIMIT)
+      throw new Error("npm diagnostic log exceeded its byte limit.");
+    if (after.size > remaining) throw new Error("npm diagnostic logs exceeded their total limit.");
+    return buffer.subarray(0, bytes);
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+function npmLogSnapshot(directory) {
+  const entries = readdirSync(directory, { withFileTypes: true });
+  if (entries.length > 64) throw new Error("Too many npm diagnostic logs.");
+  let total = 0;
+  return entries
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map((entry) => {
+      if (!entry.isFile() || !/^[\dT_Z.-]+-(?:debug-\d+\.log|timing\.json)$/u.test(entry.name))
+        throw new Error("Unexpected npm diagnostic log entry.");
+      const bytes = readNpmLog(join(directory, entry.name), NPM_LOG_TOTAL_LIMIT - total);
+      total += bytes.length;
+      if (total > NPM_LOG_TOTAL_LIMIT)
+        throw new Error("npm diagnostic logs exceeded their total limit.");
+      return {
+        name: entry.name,
+        bytes: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+        // This is a last-observed log tail, not proof of the active internal phase.
+        tail: bytes.subarray(Math.max(0, bytes.length - 4096)).toString("utf8"),
+      };
+    });
+}
+
 async function exec(file, args, options) {
+  const isInstall =
+    file === process.execPath && args[0] === npmCli && ["install", "ci"].includes(args[1]);
+  let evidence;
+  if (isInstall) {
+    const output = test.info().outputPath();
+    await mkdir(output, { recursive: true });
+    const directory = await mkdtemp(join(output, "npm-phase-"));
+    const logs = join(directory, "native-logs");
+    await mkdir(logs);
+    const parent = options?.env ?? process.env;
+    const diagnosticEnv = Object.fromEntries(
+      Object.entries(parent).filter(
+        ([key]) =>
+          !["npm_config_logs_dir", "npm_config_timing", "npm_config_logs_max"].includes(
+            key.toLowerCase(),
+          ),
+      ),
+    );
+    Object.assign(diagnosticEnv, {
+      NPM_CONFIG_LOGS_DIR: logs,
+      NPM_CONFIG_TIMING: "true",
+      NPM_CONFIG_LOGS_MAX: "1000",
+    });
+    evidence = { directory, logs, snapshots: [], diagnosticEnv };
+  }
   const started = performance.now();
   const command = {
     file: basename(file),
@@ -17,21 +115,139 @@ async function exec(file, args, options) {
   };
   let reported = false;
   let completed = false;
-  // Report only stalled commands; preserve each original argv/options and result.
+  let pending;
+  let failure;
+  let stdout;
+  let stderr;
+  const snapshot = () => {
+    const observed = { elapsedMs: performance.now() - started };
+    try {
+      observed.logs = npmLogSnapshot(evidence.logs);
+    } catch (error) {
+      observed.captureFailure = error.message;
+    }
+    evidence.snapshots.push(observed);
+    return observed;
+  };
+  // Keep original argv, cwd, cache, resolver, scripts, concurrency and deadline.
   const diagnostic = setInterval(() => {
     reported = true;
     console.info(
       "Askr consumer command stalled",
-      JSON.stringify({ ...command, elapsedMs: performance.now() - started }),
+      JSON.stringify({
+        ...command,
+        elapsedMs: performance.now() - started,
+        ...(evidence ? { npmLastObserved: snapshot() } : {}),
+      }),
     );
   }, 30_000);
   diagnostic.unref();
   try {
-    const result = await execFileAsync(file, args, options);
+    pending = execFileAsync(
+      file,
+      args,
+      evidence
+        ? {
+            ...options,
+            // Buffer capture is decoded back to the original public return shape below.
+            encoding: "buffer",
+            env: evidence.diagnosticEnv,
+          }
+        : options,
+    );
+    const result = await pending;
     completed = true;
+    if (evidence) {
+      stdout = result.stdout;
+      stderr = result.stderr;
+      result.stdout = stdout.toString("utf8");
+      result.stderr = stderr.toString("utf8");
+    }
     return result;
+  } catch (error) {
+    failure = error;
+    if (evidence) {
+      stdout = error.stdout;
+      stderr = error.stderr;
+      if (Buffer.isBuffer(stdout)) error.stdout = stdout.toString("utf8");
+      if (Buffer.isBuffer(stderr)) error.stderr = stderr.toString("utf8");
+    }
+    throw error;
   } finally {
     clearInterval(diagnostic);
+    if (evidence) {
+      const final = snapshot();
+      const captureFailures = evidence.snapshots.flatMap((item) =>
+        item.captureFailure ? [item.captureFailure] : [],
+      );
+      if (!final.logs?.some((item) => item.name.endsWith(".log")))
+        captureFailures.push("No native npm debug log was retained.");
+      try {
+        const streams = {};
+        for (const [name, bytes] of [
+          ["stdout", stdout],
+          ["stderr", stderr],
+        ]) {
+          if (!Buffer.isBuffer(bytes) || bytes.length > (options?.maxBuffer ?? 1024 * 1024)) {
+            captureFailures.push(`Missing or oversized raw npm ${name} stream.`);
+            streams[name] = { captured: false };
+            continue;
+          }
+          writeFileSync(join(evidence.directory, `${name}.bin`), bytes);
+          streams[name] = {
+            captured: true,
+            bytes: bytes.length,
+            sha256: createHash("sha256").update(bytes).digest("hex"),
+          };
+        }
+        writeFileSync(
+          join(evidence.directory, "command.json"),
+          JSON.stringify(
+            {
+              file,
+              args,
+              cwd: options?.cwd ?? process.cwd(),
+              nodeVersion: process.version,
+              npmCli,
+              pid: pending?.child?.pid ?? null,
+              timeoutMs: options?.timeout ?? null,
+              maxBuffer: options?.maxBuffer ?? 1024 * 1024,
+              completed,
+              elapsedMs: performance.now() - started,
+              error: failure
+                ? {
+                    name: failure.name,
+                    code: failure.code ?? null,
+                    signal: failure.signal ?? null,
+                    killed: failure.killed ?? null,
+                  }
+                : null,
+              diagnosticEnv: {
+                NPM_CONFIG_LOGS_DIR: evidence.logs,
+                NPM_CONFIG_TIMING: "true",
+                NPM_CONFIG_LOGS_MAX: "1000",
+              },
+              streams,
+              timingJsonPresent:
+                final.logs?.some((item) => item.name.endsWith("-timing.json")) ?? false,
+              nativeLogSnapshots: evidence.snapshots,
+              captureFailures,
+              streamCapture:
+                "Exact Buffer bytes retained by the unchanged execFile maxBuffer boundary.",
+              descendantTerminationProven: false,
+              historicalFailureCauseProven: false,
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+        if (captureFailures.length) throw new Error(captureFailures.join("; "));
+      } catch (error) {
+        // Preserve the original command error; a diagnostic failure never turns it green.
+        console.error("Askr npm phase evidence failed", error.message);
+        if (!failure) throw error;
+      }
+    }
     if (reported)
       console.info(
         "Askr consumer command finished",
