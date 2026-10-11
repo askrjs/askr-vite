@@ -6,7 +6,7 @@
 Vite plugin for Askr JSX and template transforms.
 
 `@askrjs/vite` is the build-time glue that lets Askr projects use the
-framework's JSX and template conventions inside a normal Vite app.
+framework's JSX and template conventions inside a Vite+ app.
 
 ## Install
 
@@ -19,7 +19,8 @@ Vite+ 0.3.3 is the primary Askr recipe. Keep its matching `vite` core alias and
 use `vp dev`, `vp build` and the built-in `vp test`; do not add standalone
 Vitest. Use `@askrjs/vite@0.4.2` or newer for these peer ranges.
 
-Ordinary Vite 8.2.2 is a secondary compatibility control. The additional
+Ordinary Vite 8.2.2 remains an internal compatibility control for the public
+plugin contract. Use Vite+ for Askr projects. The additional
 [Vite+ 1.1.0 starter](examples/vite-plus/README.md) is a runtime-characterized
 fixture consuming a packed artifact from this checkout, not an upgrade
 requirement for the primary recipe.
@@ -64,14 +65,8 @@ npm ls --all
 `npm ls --all` reports the one known alias-peer diagnostic described below;
 this recipe has qualified runtime behavior, not a peer-clean dependency tree.
 
-For the secondary plain Vite control, install the test tools with:
-
-```sh
-npm install -D vite@8.2.2 vitest@5.0.3 msw@2.15.0
-npm exec -- msw init public --save
-npm ci
-npm ls --all
-```
+The plain Vite/Vitest row is an internal compatibility test, not an Askr
+setup recipe.
 
 For Vite+, keep its matching `vite` core alias and use `vite-plus/test` imports
 with `vp test`; do not add standalone Vitest. The
@@ -116,9 +111,6 @@ export default defineConfig({
   plugins: [askr(), askrServer({ entry: "./src/server/entry-server.ts" })],
 });
 ```
-
-For the secondary plain Vite recipe, import `defineConfig` from `vite` and use
-its development and build commands.
 
 `askr({ optimizeTemplates: true })` optionally hoists repeated static
 `class`, `className`, and `style` literals from parsed JSX-runtime property

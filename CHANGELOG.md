@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-11
+
 ### Breaking changes
 
 - Keep the named `askr` factory at the root; remove the duplicate default and

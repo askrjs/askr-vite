@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import { afterEach, beforeAll, expect, it } from "vitest";
+import { afterEach, beforeAll, expect, it } from "vite-plus/test";
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -117,7 +117,7 @@ it("should typecheck installed plugins given Vite and vite-plus consumers", asyn
   expect(result.stderr).toBe("");
 });
 
-it("should keep linked Askr packages on one runtime given a Vitest module runner", async () => {
+it("should keep linked Askr packages on one runtime given the Vite+ test module runner", async () => {
   const consumerRoot = await mkdtemp(join(tmpdir(), "askr-vite-installed-runtime-"));
   temporaryDirectories.push(consumerRoot);
   const rootRuntime = join(consumerRoot, "node_modules", "@askrjs", "askr");
@@ -171,13 +171,13 @@ it("should keep linked Askr packages on one runtime given a Vitest module runner
   await Promise.all([
     symlink(linkedUi, join(consumerRoot, "node_modules", "@askrjs", "ui"), "dir"),
     linkPackage(consumerRoot, "vite"),
-    linkPackage(consumerRoot, "vitest"),
+    linkPackage(consumerRoot, "vite-plus"),
   ]);
 
   await writeFile(
     join(consumerRoot, "runtime.test.js"),
     [
-      'import { expect, it } from "vitest";',
+      'import { expect, it } from "vite-plus/test";',
       'import { runtime } from "@askrjs/askr";',
       'import { siblingRuntime } from "@askrjs/ui";',
       'it("should use one runtime", () => expect(siblingRuntime).toBe(runtime));',
@@ -186,7 +186,7 @@ it("should keep linked Askr packages on one runtime given a Vitest module runner
   await writeFile(
     join(consumerRoot, "vite.config.js"),
     [
-      'import { defineConfig } from "vitest/config";',
+      'import { defineConfig } from "vite-plus";',
       `import { askrServer } from ${JSON.stringify(pathToFileURL(join(repositoryRoot, "dist", "server.js")).href)};`,
       "export default defineConfig({",
       '  resolve: { preserveSymlinks: true, dedupe: ["@askrjs/askr"] },',
@@ -194,6 +194,17 @@ it("should keep linked Askr packages on one runtime given a Vitest module runner
       '  test: { environment: "node", include: ["runtime.test.js"] },',
       "});",
     ].join("\n"),
+  );
+
+  // Loading the owned config cannot depend on test-runner-only globals.
+  await exec(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `const { default: config } = await import(${JSON.stringify(pathToFileURL(join(consumerRoot, "vite.config.js")).href)}); if (config.test?.environment !== "node") throw new Error("Installed Vite+ config did not load");`,
+    ],
+    { cwd: consumerRoot },
   );
 
   const vitePlusRoot = dirname(require.resolve("vite-plus/package.json"));
