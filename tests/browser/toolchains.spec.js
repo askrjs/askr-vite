@@ -8,7 +8,37 @@ import { test, expect } from "@playwright/test";
 import sharp from "sharp";
 import { readPackRecord } from "../pack-result.js";
 
-const exec = promisify(execFile);
+const execFileAsync = promisify(execFile);
+async function exec(file, args, options) {
+  const started = performance.now();
+  const command = {
+    file: basename(file),
+    args: args.slice(0, 3).map((arg) => basename(arg).slice(0, 120)),
+  };
+  let reported = false;
+  let completed = false;
+  // Report only stalled commands; preserve each original argv/options and result.
+  const diagnostic = setInterval(() => {
+    reported = true;
+    console.info(
+      "Askr consumer command stalled",
+      JSON.stringify({ ...command, elapsedMs: performance.now() - started }),
+    );
+  }, 30_000);
+  diagnostic.unref();
+  try {
+    const result = await execFileAsync(file, args, options);
+    completed = true;
+    return result;
+  } finally {
+    clearInterval(diagnostic);
+    if (reported)
+      console.info(
+        "Askr consumer command finished",
+        JSON.stringify({ ...command, completed, elapsedMs: performance.now() - started }),
+      );
+  }
+}
 const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error("Run the consumer matrix through npm run test:browser.");
 let artifacts;

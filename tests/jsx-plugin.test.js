@@ -18,20 +18,51 @@ function positionOf(code, token) {
 }
 
 async function withViteFixture(source, options, work) {
-  const root = mkdtempSync(join(process.cwd(), ".askr-vite-plugin-"));
-  writeFileSync(join(root, "fixture.tsx"), source);
-  const server = await createServer({
-    root,
-    logLevel: "silent",
-    server: { middlewareMode: true },
-    plugins: [askrVitePlugin(options)],
-  });
+  const started = performance.now();
+  const phases = [];
+  const mark = (phase) => phases.push({ phase, elapsedMs: performance.now() - started });
+  const report = () => console.info("Askr JSX live fixture phases", JSON.stringify(phases));
+  // Emit only after a stall or completion, so synchronous logging does not alter
+  // the transform-to-close timing that this diagnostic needs to observe.
+  const diagnostic = setTimeout(report, 30_000);
+  diagnostic.unref();
 
   try {
-    await work(server);
+    const root = mkdtempSync(join(process.cwd(), ".askr-vite-plugin-"));
+    writeFileSync(join(root, "fixture.tsx"), source);
+    mark("create:start");
+    const server = await createServer({
+      root,
+      logLevel: "silent",
+      server: { middlewareMode: true },
+      plugins: [askrVitePlugin(options)],
+    });
+    mark("create:complete");
+    phases.push({
+      phase: "resolved:config",
+      optimizeDeps: {
+        noDiscovery: server.config.optimizeDeps.noDiscovery,
+        holdUntilCrawlEnd: server.config.optimizeDeps.holdUntilCrawlEnd,
+        include: server.config.optimizeDeps.include,
+        exclude: server.config.optimizeDeps.exclude,
+      },
+      preTransformRequests: server.config.server.preTransformRequests,
+    });
+
+    try {
+      mark("work:start");
+      await work(server, mark);
+      mark("work:complete");
+    } finally {
+      mark("close:start");
+      await server.close();
+      mark("close:complete");
+      rmSync(root, { recursive: true, force: true });
+      mark("fixture:removed");
+    }
   } finally {
-    await server.close();
-    rmSync(root, { recursive: true, force: true });
+    clearTimeout(diagnostic);
+    report();
   }
 }
 
@@ -72,8 +103,10 @@ describe("Askr JSX plugin", () => {
       'export const View = () => <><div class="active"/><span class="active"/></>;',
     ].join("\n");
 
-    await withViteFixture(source, { optimizeTemplates: true }, async (server) => {
+    await withViteFixture(source, { optimizeTemplates: true }, async (server, mark) => {
+      mark("transform:start");
       const transformed = await server.transformRequest("/fixture.tsx");
+      mark("transform:complete");
       expect(transformed?.code).toContain('class: "active"');
       expect(transformed?.code).toContain("class: __askrStaticLiteral0");
     });
