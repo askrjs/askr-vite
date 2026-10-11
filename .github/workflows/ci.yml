@@ -30,8 +30,17 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: "lts/*"
+          node-version: "24.21.0"
           cache: npm
+      - name: Use qualified npm resolver
+        run: npm install --global npm@12.0.1
+
+      - name: Verify toolchain versions
+        shell: bash
+        run: |
+          node --version
+          npm --version
+
       - name: Install dependencies
         run: npm ci
 
@@ -42,16 +51,126 @@ jobs:
       - name: Format check
         run: npm run fmt --if-present -- --check
 
-      - name: Lint
-        run: npm run lint
+      - name: Additional type tests
+        run: npm run test:types --if-present
 
-      - name: Build
-        run: npm run build
+      # check owns lint, typecheck, unit/browser tests, build, publint and pack:check.
+      # Keep a single full invocation so normal packaging fits the same job budget.
+      - name: Complete the required repository aggregate
+        shell: bash
+        run: npm run check
 
-      - name: Test
-        run: npm test
-
-      - name: Type checks
+      - name: Create and qualify the normal active-prepack archive
+        id: normal-pack
+        shell: bash
+        env:
+          VITE_PACK_EVIDENCE: ${{ runner.temp }}/askr-vite-normal-pack
+          NPM_CONFIG_IGNORE_SCRIPTS: "false"
         run: |
-          npm run typecheck --if-present
-          npm run test:types --if-present
+          node --input-type=module <<'JS'
+          import { mkdirSync } from 'node:fs';
+          mkdirSync(process.env.VITE_PACK_EVIDENCE);
+          JS
+          npm config get ignore-scripts > "$VITE_PACK_EVIDENCE/ignore-scripts.txt"
+          npm pack --json --pack-destination "$VITE_PACK_EVIDENCE" > "$VITE_PACK_EVIDENCE/npm-pack.stdout.log" 2> "$VITE_PACK_EVIDENCE/npm-pack.stderr.log"
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { lstatSync, readFileSync, writeFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          import { readPackRecord } from './tests/pack-result.js';
+          function validateIdentity(record, pkg) {
+            assert.equal(record.name, pkg.name);
+            assert.equal(record.version, pkg.version);
+            assert.equal(record.id, `${pkg.name}@${pkg.version}`);
+            assert.equal(record.filename, `askrjs-vite-${pkg.version}.tgz`);
+          }
+          function validateBytes(record, archive) {
+            assert.equal(record.size, archive.length);
+            assert.equal(record.integrity, 'sha512-' + createHash('sha512').update(archive).digest('base64'));
+            assert.equal(record.shasum, createHash('sha1').update(archive).digest('hex'));
+            return createHash('sha256').update(archive).digest('hex');
+          }
+          function readBounded(path, limit) {
+            const info = lstatSync(path);
+            assert(info.isFile() && !info.isSymbolicLink() && info.size > 0 && info.size <= limit);
+            return readFileSync(path, 'utf8');
+          }
+          function readPackEvidence(stdout, stderr, pkg, ignoreScripts) {
+            assert.equal(ignoreScripts, 'false', 'npm lifecycle scripts must be enabled.');
+            assert.equal(pkg.scripts.prepack, 'npm run build');
+            assert.equal(pkg.scripts.build, 'vp pack');
+            const phases = [pkg.name + '@' + pkg.version + ' prepack', 'npm run build', pkg.name + '@' + pkg.version + ' build', 'vp pack'];
+            const transcripts = [
+              { stream: 'stdout', source: stdout, prefix: '> ' },
+              { stream: 'stderr', source: stderr, prefix: 'npm notice run ' },
+              { stream: 'stderr', source: stderr, prefix: '> ' },
+            ];
+            let lifecycleEvidence;
+            for (const transcript of transcripts) {
+              const lines = transcript.source.split(/\r?\n/u).map((line) => line.trim());
+              let previous = -1;
+              const indices = phases.map((phase) => {
+                const index = lines.findIndex((line, position) => position > previous && line === transcript.prefix + phase);
+                previous = index < 0 ? lines.length : index;
+                return index;
+              });
+              if (indices.every((index) => index >= 0)) {
+                lifecycleEvidence = { stream: transcript.stream, lines: phases.map((phase) => transcript.prefix + phase), indices };
+                break;
+              }
+            }
+            assert.ok(lifecycleEvidence, 'Captured npm logs must prove prepack → build → vp pack ran in order.');
+            assert.match(stdout, /Build start/u, 'Retain actual Vite+ build output from prepack.');
+            const candidates = [];
+            for (const match of stdout.matchAll(/^[{\[]/gm)) {
+              try { candidates.push({ value: JSON.parse(stdout.slice(match.index)), index: match.index }); } catch {}
+            }
+            assert.equal(candidates.length, 1, 'Expected one complete npm JSON suffix after lifecycle output.');
+            const suffix = candidates[0];
+            const record = readPackRecord(suffix.value);
+            return { record, lifecycleEvidence, lifecyclePrefixSha256: createHash('sha256').update(stdout.slice(0, suffix.index)).digest('hex') };
+          }
+          const root = process.env.VITE_PACK_EVIDENCE;
+          const packageBytes = readFileSync('package.json');
+          const pkg = JSON.parse(packageBytes);
+          assert.equal(pkg.name, '@askrjs/vite');
+          const stdout = readBounded(join(root, 'npm-pack.stdout.log'), 32 * 1024 * 1024);
+          const stderrPath = join(root, 'npm-pack.stderr.log');
+          const stderrInfo = lstatSync(stderrPath);
+          assert(stderrInfo.isFile() && !stderrInfo.isSymbolicLink() && stderrInfo.size <= 32 * 1024 * 1024);
+          const stderr = readFileSync(stderrPath, 'utf8');
+          const ignoreScripts = readBounded(join(root, 'ignore-scripts.txt'), 64).trim();
+          assert.equal(process.env.NPM_CONFIG_IGNORE_SCRIPTS, 'false');
+          const evidence = readPackEvidence(stdout, stderr, pkg, ignoreScripts);
+          const { record, lifecycleEvidence, lifecyclePrefixSha256 } = evidence;
+          validateIdentity(record, pkg);
+          const tarball = join(root, record.filename);
+          const info = lstatSync(tarball);
+          assert(info.isFile() && !info.isSymbolicLink() && info.size > 0 && info.size <= 64 * 1024 * 1024);
+          const archive = readFileSync(tarball);
+          const sha256 = validateBytes(record, archive);
+          writeFileSync(join(root, 'archive-identity.json'), JSON.stringify({
+            name: pkg.name, version: pkg.version, filename: record.filename,
+            bytes: archive.length, sha256, integrity: record.integrity, shasum: record.shasum,
+            packageSha256: createHash('sha256').update(packageBytes).digest('hex'),
+            lockSha256: createHash('sha256').update(readFileSync('package-lock.json')).digest('hex'),
+            nodeVersion: process.version, normalPack: true, prepackSuppressed: false,
+            ignoreScripts, lifecycleEvidence, lifecyclePrefixSha256,
+            stdoutSha256: createHash('sha256').update(stdout).digest('hex'),
+            stderrSha256: createHash('sha256').update(stderr).digest('hex'),
+          }, null, 2) + '\n');
+          writeFileSync(join(root, 'tarball-path.txt'), tarball + '\n');
+          JS
+          IFS= read -r tarball < "$VITE_PACK_EVIDENCE/tarball-path.txt"
+          npm run pack:check -- "$tarball"
+
+      - name: Retain the normal archive and raw pack evidence
+        if: always() && steps.normal-pack.outcome != 'skipped'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: askr-vite-normal-pack-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/askr-vite-normal-pack/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90

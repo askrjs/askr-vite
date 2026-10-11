@@ -9,11 +9,18 @@
     "test": "vp test run --config askr.config.ts"
   },
   "dependencies": {
-    "@askrjs/askr": "0.4.3"
+    "@askrjs/askr": "0.4.4"
   },
   "devDependencies": {
+    "@askrjs/fetch": "0.4.2",
     "@askrjs/vite": "file:../../askrjs-vite-0.4.2.tgz",
+    "msw": "2.15.0",
     "vite": "npm:@voidzero-dev/vite-plus-core@1.1.0",
     "vite-plus": "1.1.0"
+  },
+  "allowScripts": {
+    "msw@2.15.0": true,
+    "fsevents@2.3.3": true,
+    "fsevents@2.3.2": true
   }
 }
