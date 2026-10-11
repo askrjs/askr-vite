@@ -51,21 +51,11 @@ jobs:
       - name: Format check
         run: npm run fmt --if-present -- --check
 
-      - name: Lint
-        run: npm run lint
+      - name: Additional type tests
+        run: npm run test:types --if-present
 
-      - name: Build
-        run: npm run build
-
-      - name: Test
-        run: npm test
-
-      - name: Type checks
-        shell: bash
-        run: |
-          npm run typecheck --if-present
-          npm run test:types --if-present
-
+      # check owns lint, typecheck, unit/browser tests, build, publint and pack:check.
+      # Keep a single full invocation so normal packaging fits the same job budget.
       - name: Complete the required repository aggregate
         shell: bash
         run: npm run check
