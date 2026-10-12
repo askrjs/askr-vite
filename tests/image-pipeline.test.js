@@ -672,7 +672,9 @@ it.skipIf(process.platform !== "win32")(
     await pipeline.writeMetadata(context);
     const entries = Object.values((await watchedMetadata(root)).entries);
     expect(entries).toHaveLength(1);
-    expect(path.normalize(entries[0].sourcePath)).toBe(path.normalize(path.join(root, "src/hero.jpg")));
+    expect(path.normalize(entries[0].sourcePath)).toBe(
+      path.normalize(path.join(root, "src/hero.jpg")),
+    );
   },
 );
 
