@@ -21,6 +21,10 @@ import { readPackRecord } from "../pack-result.js";
 const execFileAsync = promisify(execFile);
 const NPM_LOG_FILE_LIMIT = 16 * 1024 * 1024;
 const NPM_LOG_TOTAL_LIMIT = 32 * 1024 * 1024;
+const NPM_INSTALL_TIMEOUT = process.platform === "win32" ? 180_000 : 120_000;
+// Windows CI spends about 172 seconds on the packed consumer's install and ci
+// before it can run the remaining toolchain, HMR, image, and build assertions.
+const PACKED_CONSUMER_TEST_TIMEOUT = process.platform === "win32" ? 420_000 : 180_000;
 
 // Read a finite snapshot even while npm is still appending its own log.
 function readNpmLog(path, remaining = NPM_LOG_TOTAL_LIMIT) {
@@ -595,6 +599,7 @@ for (const toolchain of matrix) {
   test(`${toolchain.name}: ordinary packed install/ci, native/browser mocks, JSX, HMR and builds`, async ({
     page,
   }) => {
+    test.setTimeout(PACKED_CONSUMER_TEST_TIMEOUT);
     const root = await realpath(await mkdtemp(join(tmpdir(), "askr-vite-consumer-")));
     let dev;
     try {
@@ -618,7 +623,7 @@ for (const toolchain of matrix) {
         [npmCli, "install", "--no-audit", "--no-fund"],
         {
           cwd: root,
-          timeout: 120_000,
+          timeout: NPM_INSTALL_TIMEOUT,
         },
       );
       await test.info().attach("ordinary-install.log", {
@@ -635,7 +640,7 @@ for (const toolchain of matrix) {
         [npmCli, "ci", "--no-audit", "--no-fund"],
         {
           cwd: root,
-          timeout: 120_000,
+          timeout: NPM_INSTALL_TIMEOUT,
         },
       );
       await test.info().attach("ordinary-ci.log", {
@@ -809,6 +814,7 @@ for (const toolchain of matrix) {
 test("Vite+ starter uses one installed toolchain for dev, checks, tests and builds", async ({
   page,
 }) => {
+  test.setTimeout(PACKED_CONSUMER_TEST_TIMEOUT);
   const root = await realpath(await mkdtemp(join(tmpdir(), "askr-vite-starter-")));
   let dev;
   try {
@@ -819,13 +825,13 @@ test("Vite+ starter uses one installed toolchain for dev, checks, tests and buil
     await writeFile(join(root, "package.json"), JSON.stringify(manifest));
     await exec(process.execPath, [npmCli, "install", "--no-audit", "--no-fund"], {
       cwd: root,
-      timeout: 120_000,
+      timeout: NPM_INSTALL_TIMEOUT,
     });
     const toolchain = matrix.find((item) => item.name === "Vite+ 1.1.0");
     await inspectInstalledToolchain(root, toolchain, "starter-install");
     await exec(process.execPath, [npmCli, "ci", "--no-audit", "--no-fund"], {
       cwd: root,
-      timeout: 120_000,
+      timeout: NPM_INSTALL_TIMEOUT,
     });
     await inspectInstalledToolchain(root, toolchain, "starter-ci");
     await exec(process.execPath, [npmCli, "exec", "--", "msw", "init", "public", "--save"], {
@@ -909,7 +915,7 @@ test("MSW 3: Vite+ strict install and plain Vite ordinary ci expose exact upstre
     const rejected = await exec(
       process.execPath,
       [npmCli, "install", "--strict-peer-deps", "--no-audit", "--no-fund"],
-      { cwd: root, timeout: 120_000 },
+      { cwd: root, timeout: NPM_INSTALL_TIMEOUT },
     ).then(
       () => {
         throw new Error("The incompatible MSW 3/Vite+ peer install unexpectedly succeeded.");
@@ -936,7 +942,7 @@ test("MSW 3: Vite+ strict install and plain Vite ordinary ci expose exact upstre
     for (const command of ["install", "ci"]) {
       const installed = await exec(process.execPath, [npmCli, command, "--no-audit", "--no-fund"], {
         cwd: root,
-        timeout: 120_000,
+        timeout: NPM_INSTALL_TIMEOUT,
       });
       await test.info().attach(`msw3-plain-${command}.log`, {
         body: Buffer.from(installed.stdout + installed.stderr),

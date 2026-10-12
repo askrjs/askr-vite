@@ -643,6 +643,41 @@ it("should retain a captured in-flight source snapshot and recover after source 
   expect(currentEntry.image).toMatchObject({ width: 320, height: 240 });
 });
 
+it.skipIf(process.platform !== "win32")(
+  "should reuse image cache identity across native and slash-separated Windows module ids",
+  async () => {
+    const root = await createFixture();
+    const pipeline = new ImagePipeline({}, async () => sharp);
+    pipeline.configure({ root, command: "build", base: "/" });
+    const emitted = new Map();
+    const context = {
+      emitFile(file) {
+        const reference = `asset-${emitted.size}`;
+        emitted.set(reference, file);
+        return reference;
+      },
+      getFileName(reference) {
+        return emitted.get(reference).name;
+      },
+    };
+    const id = path.join(root, "src/main.ts");
+    const code =
+      'import { image } from "@askrjs/vite/image"; image(new URL("./hero.jpg", import.meta.url), { widths: [100] });';
+    const native = await pipeline.transform(context, code, id);
+    const emittedCount = emitted.size;
+    const slashSeparated = await pipeline.transform(context, code, id.replaceAll("\\", "/"));
+
+    expect(slashSeparated).toBe(native);
+    expect(emitted.size).toBe(emittedCount);
+    await pipeline.writeMetadata(context);
+    const entries = Object.values((await watchedMetadata(root)).entries);
+    expect(entries).toHaveLength(1);
+    expect(path.normalize(entries[0].sourcePath)).toBe(
+      path.normalize(path.join(root, "src/hero.jpg")),
+    );
+  },
+);
+
 it("should reject malformed checked metadata with a rebuild diagnostic and recover from a valid rebuild", async () => {
   const root = await createFixture();
   await buildFixture(root);
