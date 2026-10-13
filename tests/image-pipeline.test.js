@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { build as viteBuild } from "vite";
 import { build as vitePlusBuild } from "vite-plus";
 import { image as nodeImage } from "../src/image-node.ts";
