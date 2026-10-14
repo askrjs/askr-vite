@@ -13,6 +13,9 @@
 *.yaml text eol=lf
 *.md text eol=lf
 
+# Package metadata
+LICENSE text eol=lf
+
 # Shell scripts
 *.sh text eol=lf
 *.bash text eol=lf

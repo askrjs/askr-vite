@@ -15,6 +15,12 @@ const result = readPackRecord(
 );
 
 const packedFiles = new Set(result.files.map(({ path }) => normalize(path)));
+assert.ok(packedFiles.has(normalize("LICENSE")), "Packed artifact must include LICENSE.");
+assert.equal(
+  readFileSync("LICENSE", "utf8").includes("\r"),
+  false,
+  "LICENSE included by npm pack must use LF line endings on every platform.",
+);
 const exports = JSON.parse(readFileSync("package.json", "utf8")).exports;
 assert.deepEqual(exports, {
   ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },

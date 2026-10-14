@@ -871,7 +871,10 @@ it("should build images from nested Unicode and URL-reserved paths with original
       lib: { entry: id, formats: ["es"], fileName: "unusual" },
       minify: false,
       sourcemap: true,
-      rollupOptions: { external: [/^@askrjs\//] },
+      rollupOptions: {
+        external: [/^@askrjs\//],
+        output: { assetFileNames: "assets/[name]#[hash][extname]" },
+      },
     },
   });
   const output = Array.isArray(result) ? result.flatMap((bundle) => bundle.output) : result.output;
@@ -886,6 +889,27 @@ it("should build images from nested Unicode and URL-reserved paths with original
   const record = Object.values((await watchedMetadata(root)).entries)[0];
   expect(record.sourcePath).toBe(sourcePath);
   expect(nodeImage(pathToFileURL(sourcePath))).toEqual(record.image);
+  const emittedAssets = new Set(
+    output.filter((file) => file.type === "asset").map((file) => file.fileName),
+  );
+  const sourceAsset = output.find(
+    (file) => file.type === "asset" && Buffer.from(file.source).equals(Buffer.from(initialSvg)),
+  );
+  expect(sourceAsset).toBeDefined();
+  const assetUrl = new URL(record.image.src, "https://example.test/");
+  expect(decodeURIComponent(assetUrl.pathname)).toBe(`/${sourceAsset.fileName}`);
+  const metadataUrls = [
+    record.image.src,
+    ...[record.image.srcset, ...record.image.sources.map(({ srcset }) => srcset)]
+      .filter(Boolean)
+      .flatMap((srcset) => srcset.split(", ").map((candidate) => candidate.split(" ", 1)[0])),
+  ];
+  for (const metadataUrl of metadataUrls) {
+    const parsed = new URL(metadataUrl, "https://example.test/");
+    expect(parsed.search).toBe("");
+    expect(parsed.hash).toBe("");
+    expect(emittedAssets.has(decodeURIComponent(parsed.pathname.slice(1)))).toBe(true);
+  }
   expect(
     await fs.readFile(
       path.join(root, "dist", decodeURIComponent(record.image.src.replace(/^\//, ""))),

@@ -36,6 +36,10 @@ function mime(format: EmittedVariant["format"]): string {
   return format === "jpeg" ? "image/jpeg" : `image/${format}`;
 }
 
+function encodeAssetFileName(fileName: string): string {
+  return fileName.split("/").map(encodeURIComponent).join("/");
+}
+
 function srcsetExpression(variants: readonly EmittedVariant[]): string {
   return `[${variants.map((variant) => `${urlExpression(variant.referenceId)} + ${JSON.stringify(` ${variant.width}w`)}`).join(",")}].join(", ")`;
 }
@@ -59,8 +63,9 @@ function imageExpression(processed: ProcessedImage): string {
 }
 
 function builtUrl(base: string, fileName: string): string {
-  // Whitespace in asset filenames must not become srcset grammar separators.
-  const encodedFileName = encodeURI(fileName);
+  // Encode URL delimiters such as # as well as whitespace, while preserving
+  // directory separators in Rollup's emitted asset path.
+  const encodedFileName = encodeAssetFileName(fileName);
   if (/^https?:\/\//.test(base))
     return new URL(encodedFileName, base.endsWith("/") ? base : `${base}/`).href;
   if (base === "" || base === "./" || base === ".")
