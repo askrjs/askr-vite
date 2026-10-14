@@ -34,8 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolve declared image URLs using file-URL semantics, preserving spaces,
   Unicode and percent-encoded reserved characters in real filesystem paths.
 - Encode emitted asset filenames in checked `src`/`srcset` URLs, so Node metadata
-  with spaces or Unicode selects the same responsive candidates as the browser
-  client instead of falling back to the full-size source image.
+  with spaces, Unicode or reserved URL characters selects the same responsive
+  candidates as the browser client instead of falling back to the full-size
+  source image.
 - Reject malformed checked Node metadata with an attributed rebuild instruction,
   preserving finite positive dimensions including fractional SVG dimensions.
   Missing source files identify the image and restoration step.

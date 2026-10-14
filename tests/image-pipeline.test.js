@@ -871,7 +871,10 @@ it("should build images from nested Unicode and URL-reserved paths with original
       lib: { entry: id, formats: ["es"], fileName: "unusual" },
       minify: false,
       sourcemap: true,
-      rollupOptions: { external: [/^@askrjs\//] },
+      rollupOptions: {
+        external: [/^@askrjs\//],
+        output: { assetFileNames: "assets/[name]#[hash][extname]" },
+      },
     },
   });
   const output = Array.isArray(result) ? result.flatMap((bundle) => bundle.output) : result.output;
@@ -886,6 +889,14 @@ it("should build images from nested Unicode and URL-reserved paths with original
   const record = Object.values((await watchedMetadata(root)).entries)[0];
   expect(record.sourcePath).toBe(sourcePath);
   expect(nodeImage(pathToFileURL(sourcePath))).toEqual(record.image);
+  const sourceAsset = output.find(
+    (file) => file.type === "asset" && Buffer.from(file.source).equals(Buffer.from(initialSvg)),
+  );
+  expect(sourceAsset).toBeDefined();
+  const assetUrl = new URL(record.image.src, "https://example.test/");
+  expect(assetUrl.search).toBe("");
+  expect(assetUrl.hash).toBe("");
+  expect(decodeURIComponent(assetUrl.pathname)).toBe(`/${sourceAsset.fileName}`);
   expect(
     await fs.readFile(
       path.join(root, "dist", decodeURIComponent(record.image.src.replace(/^\//, ""))),
