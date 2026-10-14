@@ -114,8 +114,8 @@ export function askrVitePlugin(options: AskrVitePluginOptions = {}): AskrVitePlu
     configResolved(config) {
       imagePipeline?.configure(config);
     },
-    buildStart() {
-      imagePipeline?.beginBuild();
+    async buildStart() {
+      await imagePipeline?.beginBuild(this.meta.watchMode ? true : undefined);
     },
     async transform(code, id) {
       if (id.includes("node_modules")) return null;

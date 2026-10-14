@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preserving finite positive dimensions including fractional SVG dimensions.
   Missing source files identify the image and restoration step.
 - Preserve preceding client metadata during an unrelated SSR build.
+- Remove stale image metadata at the start of a fresh client build, including
+  builds with no remaining image declarations, so direct Node rendering cannot
+  resolve asset URLs from a previous client output.
 
 ### Added
 
