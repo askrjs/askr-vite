@@ -55,9 +55,10 @@ images or declaration options. The Node adapter does not enter browser bundles.
 Watch builds now observe declared image files and use emission references owned
 by the current build. Atomic source replacement, deletion and restoration require
 no edit to the declaring module. Deleting the last declaration in a client watch
-build clears its checked entries. An unrelated SSR build preserves the preceding
-client metadata. Malformed checked metadata identifies the cache and instructs a
-client rebuild. Fractional positive SVG dimensions remain valid.
+build clears its checked entries. SSR builds preserve the preceding client
+metadata, including when their module graph imports image declarations. Malformed
+checked metadata identifies the cache and instructs a client rebuild. Fractional
+positive SVG dimensions remain valid.
 
 Duplicate plugin instances with identical options preserve the original JSX,
 image and source-map output. Configure one instance per build when choosing
