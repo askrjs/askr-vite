@@ -18,6 +18,7 @@ export interface EmittedVariant {
 }
 
 export interface AssetPluginContext {
+  addWatchFile?(id: string): void;
   emitFile(file: { type: "asset"; name: string; source: string | Uint8Array }): string;
   getFileName(referenceId: string): string;
 }
@@ -36,6 +37,17 @@ export interface ProcessedImage {
 
 function hash(value: string | Buffer): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+export async function readImageSource(sourcePath: string): Promise<Buffer> {
+  try {
+    return await fs.readFile(sourcePath);
+  } catch (cause) {
+    throw new Error(
+      `@askrjs/vite could not read responsive image source ${sourcePath}. Restore the image and rebuild.`,
+      { cause },
+    );
+  }
 }
 
 export function declarationKey(sourcePath: string, options: ImageOptions): string {
@@ -154,7 +166,7 @@ export async function processImage(
   cacheDir: string,
   sharpLoader: SharpLoader,
 ): Promise<ProcessedImage> {
-  const source = await fs.readFile(sourcePath);
+  const source = await readImageSource(sourcePath);
   const sourceHash = hash(source);
   const normalized = normalizeImageOptions(globalOptions, declarationOptions);
   const inspection = inspectSource(sourcePath, source);

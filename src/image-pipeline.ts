@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ResolvedConfig } from "vite";
 import { imageDeclarations } from "./image-declarations";
 import {
@@ -15,6 +16,7 @@ import {
   declarationKey,
   defaultSharpLoader,
   processImage,
+  readImageSource,
   type AssetPluginContext,
   type EmittedVariant,
   type ProcessedImage,
@@ -32,6 +34,10 @@ function urlExpression(referenceId: string): string {
 
 function mime(format: EmittedVariant["format"]): string {
   return format === "jpeg" ? "image/jpeg" : `image/${format}`;
+}
+
+function encodeAssetFileName(fileName: string): string {
+  return fileName.split("/").map(encodeURIComponent).join("/");
 }
 
 function srcsetExpression(variants: readonly EmittedVariant[]): string {
@@ -57,11 +63,14 @@ function imageExpression(processed: ProcessedImage): string {
 }
 
 function builtUrl(base: string, fileName: string): string {
+  // Encode URL delimiters such as # as well as whitespace, while preserving
+  // directory separators in Rollup's emitted asset path.
+  const encodedFileName = encodeAssetFileName(fileName);
   if (/^https?:\/\//.test(base))
-    return new URL(fileName, base.endsWith("/") ? base : `${base}/`).href;
+    return new URL(encodedFileName, base.endsWith("/") ? base : `${base}/`).href;
   if (base === "" || base === "./" || base === ".")
-    return `${base === "." ? "./" : base}${fileName}`;
-  return `${base.endsWith("/") ? base : `${base}/`}${fileName}`;
+    return `${base === "." ? "./" : base}${encodedFileName}`;
+  return `${base.endsWith("/") ? base : `${base}/`}${encodedFileName}`;
 }
 
 function responsiveMetadata(
@@ -105,6 +114,16 @@ export class ImagePipeline {
     this.#config = config;
   }
 
+  beginBuild(watchMode?: boolean): Promise<void> | void {
+    // Emission references belong to one build; encoded bytes remain in the disk cache.
+    this.#processed.clear();
+    const activeWatchMode = watchMode ?? Boolean(this.#config?.build?.watch);
+    if (!this.#config || activeWatchMode || this.#config.build?.ssr) return;
+    // A fresh client build owns the metadata file, even when it has no images.
+    // Remove the previous declaration set before duplicate plugin instances run.
+    return fs.rm(path.join(this.#config.root, IMAGE_METADATA_PATH), { force: true });
+  }
+
   async transform(
     context: AssetPluginContext,
     code: string,
@@ -128,12 +147,15 @@ export class ImagePipeline {
     let transformed = code;
     const edits: TextEdit[] = [];
     for (const declaration of [...found].reverse()) {
-      const sourcePath = path.resolve(path.dirname(id.split("?", 1)[0]!), declaration.source);
+      const sourcePath = fileURLToPath(
+        new URL(declaration.source, pathToFileURL(id.split("?", 1)[0]!)),
+      );
+      context.addWatchFile?.(sourcePath);
       const key = declarationKey(sourcePath, declaration.options);
       let processed = this.#processed.get(key);
       if (processed) {
         const sourceHash = createHash("sha256")
-          .update(await fs.readFile(sourcePath))
+          .update(await readImageSource(sourcePath))
           .digest("hex");
         if (sourceHash !== processed.sourceHash) processed = undefined;
       }
@@ -156,7 +178,10 @@ export class ImagePipeline {
   }
 
   async writeMetadata(context: AssetPluginContext): Promise<void> {
-    if (!this.#config || this.#processed.size === 0) return;
+    if (!this.#config) return;
+    // SSR outputs must not replace the checked metadata from the client build.
+    if (this.#config.build?.ssr) return;
+    if (this.#processed.size === 0 && !this.#config.build?.watch) return;
     const entries: Record<string, ImageMetadataEntry> = {};
     for (const processed of [...this.#processed.values()].sort((left, right) =>
       left.declarationKey.localeCompare(right.declarationKey),

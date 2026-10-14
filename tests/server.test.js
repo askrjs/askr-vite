@@ -1,15 +1,14 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { askrServer, createDocumentApp } from "../src/server/index.ts";
+import { ASKR_SERVER_MODULE_ID } from "../src/server/plugin.ts";
 import {
-  askrServer,
-  ASKR_SERVER_MODULE_ID,
   composeAskrDocumentResponse,
   composeAskrHead,
-  createDocumentApp,
   insertAskrFragment,
-} from "../src/server/index.ts";
+} from "../src/server/document.ts";
 import { createDevelopmentApp } from "../src/server/development.ts";
 
 const { createNodeHandlerMock } = vi.hoisted(() => ({

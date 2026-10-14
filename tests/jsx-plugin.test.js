@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createServer } from "vite";
-import { describe, expect, it, vi } from "vitest";
+import { createServer } from "vite-plus";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { askrVitePlugin } from "../src/jsx-plugin.ts";
 import { traceSourcePosition } from "../src/source-map-rewrites.ts";
 import { optimizeTemplateOutput } from "../src/template-optimizer.ts";
@@ -18,20 +18,51 @@ function positionOf(code, token) {
 }
 
 async function withViteFixture(source, options, work) {
-  const root = mkdtempSync(join(process.cwd(), ".askr-vite-plugin-"));
-  writeFileSync(join(root, "fixture.tsx"), source);
-  const server = await createServer({
-    root,
-    logLevel: "silent",
-    server: { middlewareMode: true },
-    plugins: [askrVitePlugin(options)],
-  });
+  const started = performance.now();
+  const phases = [];
+  const mark = (phase) => phases.push({ phase, elapsedMs: performance.now() - started });
+  const report = () => console.info("Askr JSX live fixture phases", JSON.stringify(phases));
+  // Emit only after a stall or completion, so synchronous logging does not alter
+  // the transform-to-close timing that this diagnostic needs to observe.
+  const diagnostic = setTimeout(report, 30_000);
+  diagnostic.unref();
 
   try {
-    await work(server);
+    const root = mkdtempSync(join(process.cwd(), ".askr-vite-plugin-"));
+    writeFileSync(join(root, "fixture.tsx"), source);
+    mark("create:start");
+    const server = await createServer({
+      root,
+      logLevel: "silent",
+      server: { middlewareMode: true },
+      plugins: [askrVitePlugin(options)],
+    });
+    mark("create:complete");
+    phases.push({
+      phase: "resolved:config",
+      optimizeDeps: {
+        noDiscovery: server.config.optimizeDeps.noDiscovery,
+        holdUntilCrawlEnd: server.config.optimizeDeps.holdUntilCrawlEnd,
+        include: server.config.optimizeDeps.include,
+        exclude: server.config.optimizeDeps.exclude,
+      },
+      preTransformRequests: server.config.server.preTransformRequests,
+    });
+
+    try {
+      mark("work:start");
+      await work(server, mark);
+      mark("work:complete");
+    } finally {
+      mark("close:start");
+      await server.close();
+      mark("close:complete");
+      rmSync(root, { recursive: true, force: true });
+      mark("fixture:removed");
+    }
   } finally {
-    await server.close();
-    rmSync(root, { recursive: true, force: true });
+    clearTimeout(diagnostic);
+    report();
   }
 }
 
@@ -72,8 +103,10 @@ describe("Askr JSX plugin", () => {
       'export const View = () => <><div class="active"/><span class="active"/></>;',
     ].join("\n");
 
-    await withViteFixture(source, { optimizeTemplates: true }, async (server) => {
+    await withViteFixture(source, { optimizeTemplates: true }, async (server, mark) => {
+      mark("transform:start");
       const transformed = await server.transformRequest("/fixture.tsx");
+      mark("transform:complete");
       expect(transformed?.code).toContain('class: "active"');
       expect(transformed?.code).toContain("class: __askrStaticLiteral0");
     });
@@ -217,4 +250,32 @@ describe("Askr JSX plugin", () => {
       );
     });
   }, 20_000);
+});
+
+it.each(["/src/space Ω.tsx", "C:\\app\\view.tsx"])(
+  "should preserve source identity for native-style JSX id %s",
+  async (id) => {
+    const source =
+      'export const first = <div class="shared"/>;\nexport const second = <span class="shared"/>;';
+    const transformed = await transformHook(askrVitePlugin({ optimizeTemplates: true })).call(
+      {
+        error(message) {
+          throw new Error(String(message));
+        },
+      },
+      source,
+      id,
+    );
+    const generated = positionOf(transformed.code, "export const second");
+    expect(traceSourcePosition(transformed.map, generated.line, generated.column)).toEqual(
+      positionOf(source, "export const second"),
+    );
+    expect(transformed.map.sourcesContent).toEqual([source]);
+    expect(transformed.map.sources).toEqual([id]);
+  },
+);
+
+it("should leave raw-query JSX content to its owning Vite loader", async () => {
+  const source = "export const View = () => <main/>;";
+  expect(await transformHook(askrVitePlugin()).call({}, source, "/src/view.tsx?raw")).toBeNull();
 });
