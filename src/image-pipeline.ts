@@ -109,9 +109,14 @@ export class ImagePipeline {
     this.#config = config;
   }
 
-  beginBuild(): void {
+  beginBuild(watchMode?: boolean): Promise<void> | void {
     // Emission references belong to one build; encoded bytes remain in the disk cache.
     this.#processed.clear();
+    const activeWatchMode = watchMode ?? Boolean(this.#config?.build?.watch);
+    if (!this.#config || activeWatchMode || this.#config.build?.ssr) return;
+    // A fresh client build owns the metadata file, even when it has no images.
+    // Remove the previous declaration set before duplicate plugin instances run.
+    return fs.rm(path.join(this.#config.root, IMAGE_METADATA_PATH), { force: true });
   }
 
   async transform(
@@ -169,10 +174,9 @@ export class ImagePipeline {
 
   async writeMetadata(context: AssetPluginContext): Promise<void> {
     if (!this.#config) return;
-    // Only a client watch rebuild can retire the preceding declaration set.
-    // An unrelated SSR build must preserve the checked client metadata.
-    if (this.#processed.size === 0 && (!this.#config.build?.watch || this.#config.build.ssr))
-      return;
+    // SSR outputs must not replace the checked metadata from the client build.
+    if (this.#config.build?.ssr) return;
+    if (this.#processed.size === 0 && !this.#config.build?.watch) return;
     const entries: Record<string, ImageMetadataEntry> = {};
     for (const processed of [...this.#processed.values()].sort((left, right) =>
       left.declarationKey.localeCompare(right.declarationKey),

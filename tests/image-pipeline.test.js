@@ -777,6 +777,63 @@ it("should preserve checked client metadata during an unrelated SSR build", asyn
   ).toEqual(Object.values(client.metadata.entries)[0].image);
 });
 
+it("should preserve checked client metadata during an SSR build that imports image declarations", async () => {
+  const root = await createFixture();
+  const client = await buildFixture(root);
+  const serverPath = path.join(root, "src/server.ts");
+  await fs.writeFile(serverPath, 'import "./main.ts";\nexport const server = true;\n');
+  await viteBuild({
+    root,
+    configFile: false,
+    logLevel: "silent",
+    resolve: {
+      alias: {
+        "@askrjs/askr/jsx-runtime": path.join(
+          repositoryRoot,
+          "node_modules/@askrjs/askr/dist/jsx-runtime.js",
+        ),
+        "@askrjs/vite/image": path.join(repositoryRoot, "src/image.ts"),
+      },
+    },
+    plugins: [askr({ images: true })],
+    build: {
+      ssr: serverPath,
+      outDir: path.join(root, "dist/server"),
+    },
+  });
+
+  expect(await watchedMetadata(root)).toEqual(client.metadata);
+});
+
+it("should clear stale checked metadata after a client rebuild removes all image declarations", async () => {
+  const root = await createFixture();
+  const sourcePath = path.join(root, "src/hero.jpg");
+  const client = await buildFixture(root);
+  expect(Object.keys(client.metadata.entries)).toHaveLength(1);
+
+  await fs.writeFile(path.join(root, "src/main.ts"), "export const noImage = true;\n");
+  await viteBuild({
+    root,
+    configFile: false,
+    base: "/docs/",
+    logLevel: "silent",
+    resolve: {
+      alias: {
+        "@askrjs/askr/jsx-runtime": path.join(
+          repositoryRoot,
+          "node_modules/@askrjs/askr/dist/jsx-runtime.js",
+        ),
+      },
+    },
+    plugins: [askr({ images: true })],
+    build: { outDir: path.join(root, "dist"), emptyOutDir: true },
+  });
+  const metadataPath = path.join(root, "node_modules/.cache/@askrjs/vite/images/metadata.json");
+
+  await expect(fs.access(metadataPath)).rejects.toMatchObject({ code: "ENOENT" });
+  expect(() => nodeImage(pathToFileURL(sourcePath))).toThrow(/image metadata is missing/);
+});
+
 it("should preserve positive fractional SVG dimensions in checked client-to-Node metadata", async () => {
   const root = await createFixture({
     declarations:
