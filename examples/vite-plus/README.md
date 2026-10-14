@@ -34,7 +34,7 @@ versions, so `npm ls --all` reports one invalid Vite alias through two exact
 bundled importer paths. This is a runtime-characterized cohort with a known
 peer diagnostic; the installed consumer test checks that exact limitation. See the
 [toolchain compatibility notes](../../README.md#test-runners-and-api-mocks)
-for the peer-clean plain Vite fallback and the separate MSW 3 boundary.
+for the plain Vite compatibility control and the separate MSW 3 boundary.
 
 Browser mocks are disabled by default. Generate the exact installed MSW
 package's worker once:

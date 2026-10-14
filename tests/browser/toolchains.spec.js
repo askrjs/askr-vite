@@ -608,7 +608,7 @@ for (const toolchain of matrix) {
         JSON.stringify({
           private: true,
           type: "module",
-          dependencies: { "@askrjs/askr": "0.4.4", "@askrjs/fetch": "0.4.2" },
+          dependencies: { "@askrjs/askr": "0.5.0", "@askrjs/fetch": "0.5.0" },
           devDependencies: { "@askrjs/vite": tarball, sharp: "0.35.5", ...toolchain.dependencies },
           allowScripts: {
             [`msw@${toolchain.dependencies.msw}`]: true,
@@ -903,7 +903,7 @@ test("MSW 3: Vite+ strict install and plain Vite ordinary ci expose exact upstre
       JSON.stringify({
         private: true,
         type: "module",
-        dependencies: { "@askrjs/askr": "0.4.4" },
+        dependencies: { "@askrjs/askr": "0.5.0" },
         devDependencies: {
           "@askrjs/vite": tarball,
           vite: "npm:@voidzero-dev/vite-plus-core@1.1.0",
@@ -935,7 +935,7 @@ test("MSW 3: Vite+ strict install and plain Vite ordinary ci expose exact upstre
       JSON.stringify({
         private: true,
         type: "module",
-        dependencies: { "@askrjs/askr": "0.4.4" },
+        dependencies: { "@askrjs/askr": "0.5.0" },
         devDependencies: { "@askrjs/vite": tarball, vite: "8.2.2", vitest: "5.0.3", msw: "3.0.3" },
       }),
     );

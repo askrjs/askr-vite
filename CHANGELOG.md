@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-12
+
 ### Breaking changes
 
+- Require the coordinated Askr 0.5 package cohort for the Core peer, Node
+  runtime dependency, and Server development integration.
 - Keep the named `askr` factory at the root; remove the duplicate default and
   `askrVitePlugin` exports. Remove the unused `ssrPrecompile` option, which never
   changed output.
@@ -57,8 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   original source maps for unusual paths and duplicate identical plugin setup,
   and deterministic captured-source recovery probes.
 - Compatible development lock corrections for Vite+ 0.3.3,
-  `tinypool` 2.1.2, `source-map-js` 1.2.2 and `sharp` 0.35.5. Existing toolchain ranges remain;
-  no runtime dependency range or package version changes.
+  `tinypool` 2.1.2, `source-map-js` 1.2.2 and `sharp` 0.35.5.
+  These development lock corrections preserve the existing toolchain ranges.
 
 ## 0.4.2 - 2026-10-08
 

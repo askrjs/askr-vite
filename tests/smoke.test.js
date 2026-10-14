@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 import { askr } from "../src/index.ts";
 
 test("should export the SPA plugin without server integration", async () => {
