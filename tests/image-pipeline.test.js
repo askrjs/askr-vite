@@ -777,6 +777,34 @@ it("should preserve checked client metadata during an unrelated SSR build", asyn
   ).toEqual(Object.values(client.metadata.entries)[0].image);
 });
 
+it("should preserve checked client metadata during an SSR build that imports image declarations", async () => {
+  const root = await createFixture();
+  const client = await buildFixture(root);
+  const serverPath = path.join(root, "src/server.ts");
+  await fs.writeFile(serverPath, 'import "./main.ts";\nexport const server = true;\n');
+  await viteBuild({
+    root,
+    configFile: false,
+    logLevel: "silent",
+    resolve: {
+      alias: {
+        "@askrjs/askr/jsx-runtime": path.join(
+          repositoryRoot,
+          "node_modules/@askrjs/askr/dist/jsx-runtime.js",
+        ),
+        "@askrjs/vite/image": path.join(repositoryRoot, "src/image.ts"),
+      },
+    },
+    plugins: [askr({ images: true })],
+    build: {
+      ssr: serverPath,
+      outDir: path.join(root, "dist/server"),
+    },
+  });
+
+  expect(await watchedMetadata(root)).toEqual(client.metadata);
+});
+
 it("should clear stale checked metadata after a client rebuild removes all image declarations", async () => {
   const root = await createFixture();
   const sourcePath = path.join(root, "src/hero.jpg");

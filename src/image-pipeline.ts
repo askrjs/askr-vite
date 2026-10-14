@@ -174,9 +174,9 @@ export class ImagePipeline {
 
   async writeMetadata(context: AssetPluginContext): Promise<void> {
     if (!this.#config) return;
-    // An unrelated SSR build must preserve the checked client metadata.
-    if (this.#processed.size === 0 && (!this.#config.build?.watch || this.#config.build.ssr))
-      return;
+    // SSR outputs must not replace the checked metadata from the client build.
+    if (this.#config.build?.ssr) return;
+    if (this.#processed.size === 0 && !this.#config.build?.watch) return;
     const entries: Record<string, ImageMetadataEntry> = {};
     for (const processed of [...this.#processed.values()].sort((left, right) =>
       left.declarationKey.localeCompare(right.declarationKey),
