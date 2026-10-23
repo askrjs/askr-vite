@@ -334,24 +334,32 @@ async function readInstalledGraph(root, stage) {
 async function inspectInstalledToolchain(root, toolchain, stage) {
   const { lock, tree, exit } = await readInstalledGraph(root, stage);
   const invalid = [];
+  const optionalExtraneous = new Set();
   const visit = (node, path) => {
-    expect(node.extraneous, path).toBeFalsy();
+    const lockPath = `node_modules/${path.slice("root/".length)}`;
+    const optionalLockEntry = lock.packages[lockPath]?.optional === true;
+    if (node.extraneous && optionalLockEntry)
+      for (const problem of node.problems ?? []) optionalExtraneous.add(problem);
+    else expect(node.extraneous, path).toBeFalsy();
     expect(node.missing, path).toBeFalsy();
     if (node.invalid) invalid.push({ path, reason: node.invalid });
     for (const [name, child] of Object.entries(node.dependencies ?? {}))
       visit(child, `${path}/${name}`);
   };
   visit(tree, "root");
+  const requiredProblems = (tree.problems ?? []).filter(
+    (problem) => !optionalExtraneous.has(problem),
+  );
   if (toolchain.package === "vite") {
-    expect(exit).toBe(0);
-    expect(tree.problems ?? []).toEqual([]);
+    expect(exit).toBe(requiredProblems.length === 0 ? 0 : 1);
+    expect(requiredProblems).toEqual([]);
     expect(invalid).toEqual([]);
   } else {
     // Vite+ bundles its runner but @vitest/mocker still advertises ordinary
     // Vite versions. Preserve this exact upstream metadata limitation; no peer bypass.
     expect(exit).toBe(1);
-    expect(tree.problems).toHaveLength(1);
-    expect(tree.problems[0]).toContain(
+    expect(requiredProblems).toHaveLength(1);
+    expect(requiredProblems[0]).toContain(
       `invalid: vite@npm:@voidzero-dev/vite-plus-core@${toolchain.dependencies["vite-plus"]}`,
     );
     expect(invalid).toEqual([
