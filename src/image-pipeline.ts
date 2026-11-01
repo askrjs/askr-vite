@@ -141,7 +141,7 @@ export class ImagePipeline {
     if (found.length === 0) return undefined;
     if (!this.#config) throw new Error("@askrjs/vite image pipeline was not configured.");
     if (this.#config.command !== "build") {
-      throw new Error("@askrjs/vite responsive image declarations currently require a Vite build.");
+      throw new Error("@askrjs/vite responsive image declarations currently require a Vite+ build.");
     }
     const cacheDir = path.join(this.#config.root, "node_modules/.cache/@askrjs/vite/images");
     let transformed = code;

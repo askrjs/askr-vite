@@ -46,8 +46,8 @@ try {
         "@askrjs/askr": ">=0.5.0 <0.6.0",
         "@askrjs/server": ">=0.5.0 <0.6.0",
         "@types/node": "^26.3.0",
-        vite: "npm:@voidzero-dev/vite-plus-core@0.3.3",
-        "vite-plus": "0.3.3",
+        vite: "npm:@voidzero-dev/vite-plus-core@1.4.0",
+        "vite-plus": "1.4.0",
       },
     }),
   );
@@ -66,7 +66,7 @@ try {
     "false",
     "--noEmit",
   ];
-  for (const name of ["@typescript/typescript6", "typescript"]) {
+  for (const name of ["typescript", "@typescript/native"]) {
     const compilerManifestPath = require.resolve(`${name}/package.json`);
     const compilerManifest = JSON.parse(readFileSync(compilerManifestPath, "utf8"));
     const compiler = join(

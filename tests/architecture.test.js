@@ -33,17 +33,20 @@ describe("Vite package architecture", () => {
     expect(readFileSync(resolve(root, "vitest.config.ts"), "utf8")).not.toMatch(/\.\.\/askr-node/);
   });
 
-  it("should accept Vite or Vite Plus without installing either build tool", () => {
+  it("should require Vite+ without installing the build tool as a runtime dependency", () => {
     const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
     expect(manifest.dependencies?.vite).toBeUndefined();
     expect(manifest.dependencies?.["vite-plus"]).toBeUndefined();
-    expect(manifest.peerDependencies?.vite).toMatch(/[<>^~*]/);
+    expect(manifest.peerDependencies?.vite).toBeUndefined();
     expect(manifest.peerDependencies?.["vite-plus"]).toMatch(/[<>^~*]/);
-    expect(manifest.peerDependencies?.["vite-plus"]).toBe("^0.3.1 || ^1.1.0");
-    expect(manifest.peerDependenciesMeta).toMatchObject({
-      vite: { optional: true },
-      "vite-plus": { optional: true },
-    });
+    expect(manifest.peerDependencies?.["vite-plus"]).toBe("^1.4.0");
+    expect(manifest.peerDependenciesMeta?.["vite-plus"]).toBeUndefined();
+  });
+
+  it("should load the JSX transform helper from Vite+ only", () => {
+    const plugin = readFileSync(resolve(root, "src/jsx-plugin.ts"), "utf8");
+    expect(plugin).toMatch(/await import\(["']vite-plus["']\)/);
+    expect(plugin).not.toMatch(/await import\(["']vite["']\)/);
   });
 
   it("should keep template optimization on the parsed JSX-runtime boundary", () => {
