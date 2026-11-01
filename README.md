@@ -24,7 +24,7 @@ The installed-package browser suite qualifies the supported toolchain:
 
 | Toolchain | `vite` dependency                        | Configuration import | Test runner |
 | --------- | ---------------------------------------- | -------------------- | ----------- |
-| Vite+ 1.4 | `npm:@voidzero-dev/vite-plus-core@1.4.0` | `vite-plus`           | `vp test`   |
+| Vite+ 1.4 | `npm:@voidzero-dev/vite-plus-core@1.4.0` | `vite-plus`          | `vp test`   |
 
 Each consumer installs normally and exercises JSX, browser
 HMR without a document reload, server document composition, production client
