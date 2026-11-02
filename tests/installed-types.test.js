@@ -10,7 +10,11 @@ import { afterEach, beforeAll, expect, it } from "vite-plus/test";
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
 const repositoryRoot = resolve(import.meta.dirname, "..");
-const typescriptCli = join(dirname(require.resolve("typescript/package.json")), "bin", "tsc");
+const typescriptCli = join(
+  dirname(require.resolve("@typescript/native/package.json")),
+  "bin",
+  "tsc",
+);
 const temporaryDirectories = [];
 
 afterEach(async () => {
@@ -32,7 +36,7 @@ async function linkPackage(consumerRoot, name) {
   await symlink(target, destination, process.platform === "win32" ? "junction" : "dir");
 }
 
-it("should typecheck installed plugins given Vite and vite-plus consumers", async () => {
+it("should typecheck installed plugins in a Vite+ consumer", async () => {
   const rootDeclaration = await readFile(join(repositoryRoot, "dist", "index.d.ts"), "utf8");
   const serverDeclaration = await readFile(join(repositoryRoot, "dist", "server.d.ts"), "utf8");
   const imageDeclaration = await readFile(join(repositoryRoot, "dist", "image.d.ts"), "utf8");
@@ -99,12 +103,11 @@ it("should typecheck installed plugins given Vite and vite-plus consumers", asyn
     [
       'import { askr } from "@askrjs/vite";',
       'import { askrServer } from "@askrjs/vite/server";',
-      'import { defineConfig as defineViteConfig, type Plugin } from "vite";',
+      'import type { Plugin } from "vite";',
       'import { defineConfig } from "vite-plus";',
       "const vitePlugin: Plugin = askr({ images: true });",
       'const serverPlugin: Plugin = askrServer({ entry: "./server.ts" });',
-      "void defineViteConfig({ plugins: [vitePlugin, serverPlugin] });",
-      'export default defineConfig({ plugins: [askr(), askrServer({ entry: "./server.ts" })] });',
+      "export default defineConfig({ plugins: [vitePlugin, serverPlugin] });",
     ].join("\n"),
   );
 

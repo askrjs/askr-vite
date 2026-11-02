@@ -45,19 +45,19 @@ function createNodeHandlerOptions(server: ViteDevServer): {
  * that composes the built server app with the HTML document.
  *
  * @param options Server entry and document configuration.
- * @returns A Vite-compatible plugin object exposing the `askr:server` name.
+ * @returns A Vite+-compatible plugin object exposing the `askr:server` name.
  */
 export function askrServer(options: AskrServerOptions): AskrServerPlugin {
   let config: ResolvedConfig | undefined;
   const plugin = {
     name: "askr:server" as const,
     config() {
-      // Askr owns document routing. Vite should serve modules and assets, but
+      // Askr owns document routing. Vite+ should serve modules and assets, but
       // must not rewrite page URLs to /index.html before the Askr fallback.
       // Keep the Askr package family inside Vite's module graph so file-linked
       // peers cannot load a second runtime with a different component context.
-      // Vitest derives its dependency inlining from resolve.noExternal, which
-      // is also Vite 8's replacement for the deprecated ssr.noExternal option.
+      // Vitest derives its dependency inlining from resolve.noExternal, replacing
+      // the deprecated ssr.noExternal option.
       return {
         appType: "custom",
         resolve: { noExternal: ["@askrjs/*"] },

@@ -11,22 +11,16 @@ import { ImagePipeline } from "./image-pipeline";
 import type { ImagePipelineOptions } from "./image-types";
 
 const require = createRequire(import.meta.url);
-type TransformWithOxc = (typeof import("vite"))["transformWithOxc"];
+type TransformWithOxc = (typeof import("vite-plus"))["transformWithOxc"];
 let transformWithOxcPromise: Promise<TransformWithOxc> | undefined;
 
 async function loadTransformWithOxc(): Promise<TransformWithOxc> {
   transformWithOxcPromise ??= (async () => {
-    for (const packageName of ["vite-plus", "vite"] as const) {
-      try {
-        const buildTool = await import(packageName);
-        if (typeof buildTool.transformWithOxc === "function") {
-          return buildTool.transformWithOxc as TransformWithOxc;
-        }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FOUND") throw error;
-      }
+    const buildTool = await import("vite-plus");
+    if (typeof buildTool.transformWithOxc === "function") {
+      return buildTool.transformWithOxc as TransformWithOxc;
     }
-    throw new Error("@askrjs/vite requires either vite or vite-plus to transform JSX.");
+    throw new Error("@askrjs/vite requires vite-plus to transform JSX.");
   })();
   return transformWithOxcPromise;
 }
@@ -44,9 +38,9 @@ export interface AskrVitePluginOptions {
 /**
  * Portable public plugin identity.
  *
- * Vite-compatible runners only require the plugin name. Keeping versioned Vite
- * hook types out of the installed declaration prevents consumers such as
- * vite-plus from comparing two distinct copies of Vite's recursive Plugin type.
+ * Vite+ runners only require the plugin name. Keeping versioned core hook types
+ * out of the installed declaration avoids coupling consumers to a second copy
+ * of Vite+'s recursive Plugin type.
  */
 export interface AskrVitePlugin {
   readonly name: "askr:vite";
@@ -60,7 +54,7 @@ export interface AskrVitePlugin {
  * context with the source file and original transform detail.
  *
  * @param options Plugin configuration; all fields are optional.
- * @returns A Vite-compatible plugin object exposing the `askr:vite` name.
+ * @returns A Vite+-compatible plugin object exposing the `askr:vite` name.
  */
 export function askrVitePlugin(options: AskrVitePluginOptions = {}): AskrVitePlugin {
   const shouldTransform = options.transformJsx ?? true;

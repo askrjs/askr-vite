@@ -63,41 +63,42 @@
   },
   "dependencies": {
     "@askrjs/node": ">=0.5.0 <0.6.0",
-    "oxc-parser": "^0.147.0",
-    "parse5": "^8.0.1"
+    "oxc-parser": "^0.156.0",
+    "parse5": "^8.1.0"
   },
   "devDependencies": {
     "@askrjs/askr": ">=0.5.0 <0.6.0",
     "@askrjs/server": ">=0.5.0 <0.6.0",
-    "@playwright/test": "1.63.0",
-    "@types/node": "^26.3.0",
-    "@typescript/typescript6": "^6.0.2",
-    "publint": "^0.3.24",
+    "@playwright/test": "1.64.1",
+    "@types/node": "^26.6.6",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "publint": "^0.3.25",
     "sharp": "^0.35.3",
-    "typescript": "^7.0.2",
-    "vite": "npm:@voidzero-dev/vite-plus-core@^0.3.1",
-    "vite-plus": "^0.3.1",
-    "vitest": "^4.1.11"
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0",
+    "vite-plus": "1.4.0",
+    "vitest": "5.0.5"
   },
   "peerDependencies": {
     "@askrjs/askr": ">=0.5.0 <0.6.0",
     "sharp": "^0.35.3",
-    "vite": "^8.2.2 || ^0.3.1 || ^1.1.0",
-    "vite-plus": "^0.3.1 || ^1.1.0"
+    "vite-plus": "^1.4.0"
   },
   "peerDependenciesMeta": {
     "sharp": {
       "optional": true
-    },
-    "vite": {
-      "optional": true
-    },
-    "vite-plus": {
-      "optional": true
     }
+  },
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0",
+    "vitest": "5.0.5"
   },
   "engines": {
     "node": ">=24.0.0"
   },
-  "packageManager": "npm@12.0.1"
+  "packageManager": "npm@12.0.1",
+  "allowScripts": {
+    "fsevents@2.3.3": true,
+    "fsevents@2.3.2": true
+  }
 }

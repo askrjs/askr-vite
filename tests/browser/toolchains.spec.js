@@ -286,26 +286,10 @@ test.afterAll(async () => {
 
 const matrix = [
   {
-    name: "Vite 8.2.2",
-    dependencies: { vite: "8.2.2", vitest: "5.0.3", msw: "2.15.0" },
-    package: "vite",
-    cli: "bin/vite.js",
-  },
-  {
-    name: "Vite+ 0.3.3",
+    name: "Vite+ 1.4.0",
     dependencies: {
-      vite: "npm:@voidzero-dev/vite-plus-core@0.3.3",
-      "vite-plus": "0.3.3",
-      msw: "2.15.0",
-    },
-    package: "vite-plus",
-    cli: "bin/vp",
-  },
-  {
-    name: "Vite+ 1.1.0",
-    dependencies: {
-      vite: "npm:@voidzero-dev/vite-plus-core@1.1.0",
-      "vite-plus": "1.1.0",
+      vite: "npm:@voidzero-dev/vite-plus-core@1.4.0",
+      "vite-plus": "1.4.0",
       msw: "2.15.0",
     },
     package: "vite-plus",
@@ -333,43 +317,35 @@ async function readInstalledGraph(root, stage) {
 
 async function inspectInstalledToolchain(root, toolchain, stage) {
   const { lock, tree, exit } = await readInstalledGraph(root, stage);
+  const extraneous = [];
+  const missing = [];
   const invalid = [];
   const visit = (node, path) => {
-    expect(node.extraneous, path).toBeFalsy();
-    expect(node.missing, path).toBeFalsy();
+    if (node.extraneous) extraneous.push(path);
+    if (node.missing) missing.push(path);
     if (node.invalid) invalid.push({ path, reason: node.invalid });
     for (const [name, child] of Object.entries(node.dependencies ?? {}))
       visit(child, `${path}/${name}`);
   };
   visit(tree, "root");
-  if (toolchain.package === "vite") {
-    expect(exit).toBe(0);
-    expect(tree.problems ?? []).toEqual([]);
-    expect(invalid).toEqual([]);
-  } else {
-    // Vite+ bundles its runner but @vitest/mocker still advertises ordinary
-    // Vite versions. Preserve this exact upstream metadata limitation; no peer bypass.
-    expect(exit).toBe(1);
-    expect(tree.problems).toHaveLength(1);
-    expect(tree.problems[0]).toContain(
-      `invalid: vite@npm:@voidzero-dev/vite-plus-core@${toolchain.dependencies["vite-plus"]}`,
-    );
-    expect(invalid).toEqual([
-      {
-        path: "root/vite-plus/@vitest/mocker/vite",
-        reason: '"^6.0.0 || ^7.0.0 || ^8.0.0" from node_modules/@vitest/mocker',
-      },
-      ...(toolchain.dependencies["vite-plus"] === "1.1.0"
-        ? [
-            {
-              path: "root/vite-plus/vitest/vite",
-              reason:
-                '"^6.0.0 || ^7.0.0 || ^8.0.0" from node_modules/@vitest/mocker, "^6.4.0 || ^7.0.0 || ^8.0.0" from node_modules/vitest',
-            },
-          ]
-        : []),
-    ]);
-  }
+  expect(exit).toBe(1);
+  expect(tree.problems).toHaveLength(1);
+  expect(tree.problems[0]).toContain(
+    `invalid: vite@npm:@voidzero-dev/vite-plus-core@${toolchain.dependencies["vite-plus"]}`,
+  );
+  expect(extraneous).toEqual([]);
+  expect(missing).toEqual([]);
+  expect(invalid).toEqual([
+    {
+      path: "root/vite-plus/@vitest/mocker/vite",
+      reason: '"^6.0.0 || ^7.0.0 || ^8.0.0" from node_modules/@vitest/mocker',
+    },
+    {
+      path: "root/vite-plus/vitest/vite",
+      reason:
+        '"^6.0.0 || ^7.0.0 || ^8.0.0" from node_modules/@vitest/mocker, "^6.4.0 || ^7.0.0 || ^8.0.0" from node_modules/vitest',
+    },
+  ]);
   const packages = {};
   for (const name of [
     "@askrjs/vite",
@@ -377,8 +353,9 @@ async function inspectInstalledToolchain(root, toolchain, stage) {
     "@askrjs/fetch",
     "vite",
     "msw",
-    toolchain.package === "vite" ? "vitest" : "vite-plus",
-    ...(toolchain.package === "vite-plus" ? ["@vitest/mocker", "vitest"] : []),
+    "vite-plus",
+    "@vitest/mocker",
+    "vitest",
   ]) {
     const directory = join(root, "node_modules", name);
     const installed = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
@@ -410,29 +387,21 @@ async function inspectInstalledToolchain(root, toolchain, stage) {
   });
 }
 
-async function prepareMockFixtures(root, toolchain) {
+async function prepareMockFixtures(root) {
   await mkdir(join(root, "tests"), { recursive: true });
   for (const [source, target] of [
     ["mock-native.test.ts", "tests/mock.test.ts"],
     ["mock-browser.ts", "mock-browser.ts"],
     ["mock-app.tsx", "mock-app.tsx"],
   ]) {
-    const contents = (
-      await readFile(join(import.meta.dirname, "../fixtures", source), "utf8")
-    ).replace(
-      'from "vite-plus/test"',
-      `from "${toolchain.package === "vite" ? "vitest" : "vite-plus/test"}"`,
-    );
+    const contents = await readFile(join(import.meta.dirname, "../fixtures", source), "utf8");
     await writeFile(join(root, target), contents);
   }
   await exec(process.execPath, [npmCli, "exec", "--", "msw", "init", "public", "--save"], {
     cwd: root,
     timeout: 30_000,
   });
-  const runner =
-    toolchain.package === "vite"
-      ? [join(root, "node_modules/vitest/vitest.mjs"), "run"]
-      : [join(root, "node_modules/vite-plus/bin/vp"), "test", "run"];
+  const runner = [join(root, "node_modules/vite-plus/bin/vp"), "test", "run"];
   const native = await exec(process.execPath, [...runner, "--config", "vite.config.ts"], {
     cwd: root,
     timeout: 60_000,
@@ -542,7 +511,7 @@ function application(label, images = false) {
 
 async function startDev(root, toolchain) {
   const command = [join(root, "node_modules", toolchain.package, toolchain.cli)];
-  if (toolchain.package === "vite-plus") command.push("dev");
+  command.push("dev");
   command.push("--host", "127.0.0.1", "--port", "0");
   if (toolchain.config) command.push("--config", toolchain.config);
   const child = spawn(process.execPath, command, {
@@ -672,7 +641,7 @@ for (const toolchain of matrix) {
       );
       await writeFile(join(root, "server-entry.ts"), 'export { app } from "virtual:askr-server";');
       await writeFile(join(root, "main.tsx"), application("First consumer"));
-      await prepareMockFixtures(root, toolchain);
+      await prepareMockFixtures(root);
       await sharp({ create: { width: 64, height: 48, channels: 3, background: "navy" } })
         .jpeg()
         .toFile(join(root, "hero.jpg"));
@@ -827,7 +796,7 @@ test("Vite+ starter uses one installed toolchain for dev, checks, tests and buil
       cwd: root,
       timeout: NPM_INSTALL_TIMEOUT,
     });
-    const toolchain = matrix.find((item) => item.name === "Vite+ 1.1.0");
+    const toolchain = matrix.find((item) => item.name === "Vite+ 1.4.0");
     await inspectInstalledToolchain(root, toolchain, "starter-install");
     await exec(process.execPath, [npmCli, "ci", "--no-audit", "--no-fund"], {
       cwd: root,
@@ -882,7 +851,7 @@ test("Vite+ starter uses one installed toolchain for dev, checks, tests and buil
   }
 });
 
-test("MSW 3: Vite+ strict install and plain Vite ordinary ci expose exact upstream peers", async () => {
+test("MSW 3 is rejected by Vite+ strict peer installation", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "askr-vite-msw3-peers-")));
   try {
     await test.info().attach("peer-probe-toolchain.json", {
@@ -906,8 +875,8 @@ test("MSW 3: Vite+ strict install and plain Vite ordinary ci expose exact upstre
         dependencies: { "@askrjs/askr": "0.5.0" },
         devDependencies: {
           "@askrjs/vite": tarball,
-          vite: "npm:@voidzero-dev/vite-plus-core@1.1.0",
-          "vite-plus": "1.1.0",
+          vite: "npm:@voidzero-dev/vite-plus-core@1.4.0",
+          "vite-plus": "1.4.0",
           msw: "3.0.2",
         },
       }),
@@ -925,61 +894,11 @@ test("MSW 3: Vite+ strict install and plain Vite ordinary ci expose exact upstre
     expect(rejected.code).toBe(1);
     expect(rejected.stderr).toContain("ERESOLVE");
     expect(rejected.stderr).toContain('peerOptional vite@">=6" from msw@3.0.2');
-    expect(rejected.stderr).toContain("vite@1.1.0");
+    expect(rejected.stderr).toContain("vite@1.4.0");
     await test.info().attach("msw3-vite-plus-peer-rejection.log", {
       body: Buffer.from(rejected.stdout + rejected.stderr),
       contentType: "text/plain",
     });
-    await writeFile(
-      join(root, "package.json"),
-      JSON.stringify({
-        private: true,
-        type: "module",
-        dependencies: { "@askrjs/askr": "0.5.0" },
-        devDependencies: { "@askrjs/vite": tarball, vite: "8.2.2", vitest: "5.0.3", msw: "3.0.3" },
-      }),
-    );
-    for (const command of ["install", "ci"]) {
-      const installed = await exec(process.execPath, [npmCli, command, "--no-audit", "--no-fund"], {
-        cwd: root,
-        timeout: NPM_INSTALL_TIMEOUT,
-      });
-      await test.info().attach(`msw3-plain-${command}.log`, {
-        body: Buffer.from(installed.stdout + installed.stderr),
-        contentType: "text/plain",
-      });
-      const graph = await readInstalledGraph(root, `msw3-plain-${command}`);
-      if (command === "install") continue;
-      expect(graph.exit).toBe(1);
-      expect(graph.tree.problems).toHaveLength(1);
-      expect(graph.tree.problems[0]).toContain("invalid: msw@3.0.3");
-      const invalid = [];
-      const visit = (node, path) => {
-        expect(node.extraneous, path).toBeFalsy();
-        expect(node.missing, path).toBeFalsy();
-        if (node.invalid) invalid.push({ path, reason: node.invalid });
-        for (const [name, child] of Object.entries(node.dependencies ?? {}))
-          visit(child, `${path}/${name}`);
-      };
-      visit(graph.tree, "root");
-      expect(invalid).toEqual([
-        {
-          path: "root/vitest/@vitest/mocker/msw",
-          reason: '"^2.4.9" from node_modules/vitest/node_modules/@vitest/mocker',
-        },
-      ]);
-      const mocker = JSON.parse(
-        await readFile(
-          join(root, "node_modules/vitest/node_modules/@vitest/mocker/package.json"),
-          "utf8",
-        ),
-      );
-      expect(mocker.version).toBe("5.0.3");
-      expect(mocker.peerDependencies.msw).toBe("^2.4.9");
-      expect(
-        JSON.parse(await readFile(join(root, "node_modules/msw/package.json"), "utf8")).version,
-      ).toBe("3.0.3");
-    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }

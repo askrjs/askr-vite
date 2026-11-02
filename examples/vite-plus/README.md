@@ -1,11 +1,11 @@
 # Vite+ starter
 
-This minimal island uses Vite+ 1.1.0 for development, production builds, lint
-checks, and its built-in Vitest tests. The `vite` dependency is the matching Vite+ core alias;
-do not replace it with regular Vite when using this toolchain.
+This minimal island uses Vite+ 1.4.0 for development, production builds, lint
+checks, and its built-in Vitest tests. The `vite` dependency is the matching
+Vite+ core alias; do not replace it with regular Vite when using this toolchain.
 
-The starter consumes a packed artifact from this checkout. Vite+ 1.1.0 peer
-compatibility is available from `@askrjs/vite@0.4.2`.
+The starter consumes a packed artifact from this checkout. `@askrjs/vite`
+requires Vite+ 1.4 or newer in the 1.x line.
 
 From the repository root:
 
@@ -29,12 +29,10 @@ these commands.
 The starter pins MSW 2.15.0 and imports tests from `vite-plus/test`. Its native
 mock test runs real `@askrjs/fetch` requests through an Askr query, exercises
 errors and retry, then closes interception and checks the real HTTP server.
-Vite+'s bundled `@vitest/mocker` and Vitest still advertise ordinary Vite
-versions, so `npm ls --all` reports one invalid Vite alias through two exact
-bundled importer paths. This is a runtime-characterized cohort with a known
-peer diagnostic; the installed consumer test checks that exact limitation. See the
-[toolchain compatibility notes](../../README.md#test-runners-and-api-mocks)
-for the plain Vite compatibility control and the separate MSW 3 boundary.
+The installed consumer test checks the exact Vite+ core peer diagnostics after
+install and clean ci, with no missing or extraneous packages. See the
+[toolchain notes](../../README.md#test-runners-and-api-mocks) for the supported
+MSW version and peer checks.
 
 Browser mocks are disabled by default. Generate the exact installed MSW
 package's worker once:

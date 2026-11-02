@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Breaking changes
+
+- Require Vite+ 1.4 or newer in the 1.x line. Remove the optional plain Vite
+  peer and its JSX transform fallback; align the `vite` core alias with the
+  `vite-plus` package version.
+
 ## 0.5.0 - 2026-10-12
 
 ### Breaking changes
