@@ -19,7 +19,7 @@
     "vite-plus": "1.7.0"
   },
   "allowScripts": {
-    "msw@2.15.0": true,
+    "msw@3.0.7": true,
     "fsevents@2.3.3": true,
     "fsevents@2.3.2": true
   }

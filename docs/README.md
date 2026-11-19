@@ -52,10 +52,10 @@ available. See the root README for the complete example and defaults.
 
 ## Peer dependencies
 
-Use Vite+ 1.4 and its matching core alias for Askr projects:
+Use Vite+ 1.7 and its matching core alias for Askr projects:
 
 ```bash
-npm install --save-dev vite-plus@1.4.0 vite@npm:@voidzero-dev/vite-plus-core@1.4.0 @askrjs/vite
+npm install --save-dev vite-plus@1.7.0 vite@npm:@voidzero-dev/vite-plus-core@8.3.8000 @askrjs/vite
 npm install @askrjs/askr
 ```
 
@@ -66,8 +66,7 @@ runner. `@askrjs/vite` requires the `vite-plus` peer and does not support plain
 Vite. The [checkout starter](../examples/vite-plus/README.md) consumes the
 packed checkout.
 
-For API mocks, use MSW 2.15.0. MSW 3 has an incompatible optional `vite` peer
-and is outside the supported test/mock cohort. See the
+For API mocks, use MSW 3.0.7. See the
 [root README](../README.md#test-runners-and-api-mocks) for the installed
 toolchain and peer checks.
 

@@ -1,4 +1,4 @@
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse } from "msw/http";
 import { setupWorker } from "msw/browser";
 
 const worker = setupWorker(
