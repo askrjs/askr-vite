@@ -1,6 +1,6 @@
 # Vite+ starter
 
-This minimal island uses Vite+ 1.4.0 for development, production builds, lint
+This minimal island uses Vite+ 1.7.0 for development, production builds, lint
 checks, and its built-in Vitest tests. The `vite` dependency is the matching
 Vite+ core alias; do not replace it with regular Vite when using this toolchain.
 
@@ -26,7 +26,7 @@ need a separate regular Vite or Vitest installation. The package's browser
 consumer suite installs this starter against the actual tarball and exercises
 these commands.
 
-The starter pins MSW 2.15.0 and imports tests from `vite-plus/test`. Its native
+The starter pins MSW 3.0.7 and imports tests from `vite-plus/test`. Its native
 mock test runs real `@askrjs/fetch` requests through an Askr query, exercises
 errors and retry, then closes interception and checks the real HTTP server.
 The installed consumer test checks the exact Vite+ core peer diagnostics after

@@ -9,17 +9,17 @@
     "test": "vp test run --config askr.config.ts"
   },
   "dependencies": {
-    "@askrjs/askr": "0.5.0"
+    "@askrjs/askr": "0.5.1"
   },
   "devDependencies": {
     "@askrjs/fetch": "0.5.0",
     "@askrjs/vite": "file:../../askrjs-vite-0.5.0.tgz",
-    "msw": "2.15.0",
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0",
-    "vite-plus": "1.4.0"
+    "msw": "3.0.7",
+    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+    "vite-plus": "1.7.0"
   },
   "allowScripts": {
-    "msw@2.15.0": true,
+    "msw@3.0.7": true,
     "fsevents@2.3.3": true,
     "fsevents@2.3.2": true
   }

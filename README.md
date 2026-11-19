@@ -11,41 +11,39 @@ framework's JSX and template conventions inside a Vite+ app.
 ## Install
 
 ```bash
-npm install -D @askrjs/vite vite-plus@1.4.0 vite@npm:@voidzero-dev/vite-plus-core@1.4.0
+npm install -D @askrjs/vite vite-plus@1.7.0 vite@npm:@voidzero-dev/vite-plus-core@8.3.8000
 npm install @askrjs/askr
 ```
 
 `@askrjs/vite` requires Vite+ 1.4 or newer in the 1.x line. Keep the
-`vite-plus` package and its matching `vite` core alias on the same version, and
+`vite-plus` package and its matching `vite` core alias at the versions shown below, and
 use `vp dev`, `vp build`, and the built-in `vp test` runner. Plain Vite is not
 supported.
 
 The installed-package browser suite qualifies the supported toolchain:
 
-| Toolchain | `vite` dependency                        | Configuration import | Test runner |
-| --------- | ---------------------------------------- | -------------------- | ----------- |
-| Vite+ 1.4 | `npm:@voidzero-dev/vite-plus-core@1.4.0` | `vite-plus`          | `vp test`   |
+| Toolchain | `vite` dependency                           | Configuration import | Test runner |
+| --------- | ------------------------------------------- | -------------------- | ----------- |
+| Vite+ 1.7 | `npm:@voidzero-dev/vite-plus-core@8.3.8000` | `vite-plus`          | `vp test`   |
 
 Each consumer installs normally and exercises JSX, browser
 HMR without a document reload, server document composition, production client
 and server builds, and responsive-image generation after ordinary install and
-clean `npm ci`. `npm ls --all` reports two known invalid Vite core alias peers
-inside Vite+'s bundled mocker and Vitest; tests assert those exact upstream
-ranges and reject missing, extraneous, or additional invalid packages. Image
+clean `npm ci`. `npm ls --all` must report a clean dependency tree. Image
 declarations require a production build; image processing during development
 is not supported.
 
 ## Test runners and API mocks
 
-The supported test cohort uses Vite+ 1.4's built-in runner with MSW 2.15.0.
+The supported test cohort uses Vite+ 1.7's built-in runner with MSW 3.0.7.
 Installed consumers cover normal `npm install`, clean `npm ci`, native
 Core/Fetch queries, the generated MSW browser worker, no-reload HMR, retries,
 and worker cleanup.
 
-Add MSW 2 and generate its installed browser worker:
+Add MSW 3 and generate its installed browser worker:
 
 ```sh
-npm install -D vite-plus@1.4.0 vite@npm:@voidzero-dev/vite-plus-core@1.4.0 msw@2.15.0
+npm install -D vite-plus@1.7.0 vite@npm:@voidzero-dev/vite-plus-core@8.3.8000 msw@3.0.7
 npm exec -- msw init public --save
 npm ci
 npm ls --all
@@ -60,11 +58,7 @@ the island mounts. Mocks require an explicit development opt-in; ordinary
 production builds omit this setup. The consumer suite also serves a separate,
 intentional mock-enabled production fixture to verify the emitted worker.
 
-MSW 3 is outside the supported test/mock cohort. Its optional `vite >=6` peer
-does not accept Vite+ core, and Vite+'s mock runner expects MSW 2. A strict
-install rejects the combination; use the qualified MSW 2 recipe instead of
-bypassing the peer checks. The [MSW 3 migration guide](https://mswjs.io/docs/migrations/2.x-to-3.x/)
-also changes the HTTP API import to `msw/http` and makes worker teardown async.
+MSW 3 exposes its HTTP handlers through `msw/http`. Await worker teardown before issuing requests to the real service.
 
 ## Use
 

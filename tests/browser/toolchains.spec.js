@@ -284,14 +284,15 @@ test.afterAll(async () => {
   if (artifacts) await rm(artifacts, { recursive: true, force: true });
 });
 
+const starter = JSON.parse(
+  await readFile(new URL("../../examples/vite-plus/package.json", import.meta.url), "utf8"),
+);
 const matrix = [
   {
-    name: "Vite+ 1.4.0",
-    dependencies: {
-      vite: "npm:@voidzero-dev/vite-plus-core@1.4.0",
-      "vite-plus": "1.4.0",
-      msw: "2.15.0",
-    },
+    name: `Vite+ ${starter.devDependencies["vite-plus"]}`,
+    dependencies: Object.fromEntries(
+      ["vite", "vite-plus", "msw"].map((name) => [name, starter.devDependencies[name]]),
+    ),
     package: "vite-plus",
     cli: "bin/vp",
   },
@@ -328,24 +329,11 @@ async function inspectInstalledToolchain(root, toolchain, stage) {
       visit(child, `${path}/${name}`);
   };
   visit(tree, "root");
-  expect(exit).toBe(1);
-  expect(tree.problems).toHaveLength(1);
-  expect(tree.problems[0]).toContain(
-    `invalid: vite@npm:@voidzero-dev/vite-plus-core@${toolchain.dependencies["vite-plus"]}`,
-  );
+  expect(exit).toBe(0);
+  expect(tree.problems ?? []).toEqual([]);
   expect(extraneous).toEqual([]);
   expect(missing).toEqual([]);
-  expect(invalid).toEqual([
-    {
-      path: "root/vite-plus/@vitest/mocker/vite",
-      reason: '"^6.0.0 || ^7.0.0 || ^8.0.0" from node_modules/@vitest/mocker',
-    },
-    {
-      path: "root/vite-plus/vitest/vite",
-      reason:
-        '"^6.0.0 || ^7.0.0 || ^8.0.0" from node_modules/@vitest/mocker, "^6.4.0 || ^7.0.0 || ^8.0.0" from node_modules/vitest',
-    },
-  ]);
+  expect(invalid).toEqual([]);
   const packages = {};
   for (const name of [
     "@askrjs/vite",
@@ -449,6 +437,8 @@ async function qualifyMocks(root, toolchain, page) {
       await expect(page.getByRole("heading", { name: "Updated mock" })).toBeVisible();
       expect(await page.evaluate(() => globalThis.mockDocument)).toBe("same-document");
     });
+    await page.waitForLoadState("networkidle");
+    await page.goto("about:blank");
   } finally {
     if (dev) await stopDev(dev.child);
   }
@@ -648,9 +638,13 @@ for (const toolchain of matrix) {
       const errors = [];
       const failedRequests = [];
       page.on("pageerror", (error) => errors.push(error.message));
-      page.on("requestfailed", (request) =>
-        failedRequests.push({ url: request.url(), error: request.failure()?.errorText }),
-      );
+      page.on("requestfailed", (request) => {
+        const url = request.url();
+        const error = request.failure()?.errorText;
+        // Chromium cancels document-owned blob URLs when moving between the fixtures.
+        if (url.startsWith("blob:") && error === "net::ERR_ABORTED") return;
+        failedRequests.push({ url, error });
+      });
       dev = await startDev(root, toolchain);
       await page.goto(dev.url);
       await expect(page.locator("h1")).toHaveText("First consumer");
@@ -661,6 +655,7 @@ for (const toolchain of matrix) {
       await writeFile(join(root, "main.tsx"), application("Updated consumer"));
       await expect(page.locator("h1")).toHaveText("Updated consumer");
       expect(await page.evaluate(() => globalThis.consumerDocument)).toBe("same-document");
+      await page.goto("about:blank");
       await stopDev(dev.child);
       dev = undefined;
       await writeFile(join(root, "main.tsx"), application("Built consumer", true));
@@ -796,7 +791,7 @@ test("Vite+ starter uses one installed toolchain for dev, checks, tests and buil
       cwd: root,
       timeout: NPM_INSTALL_TIMEOUT,
     });
-    const toolchain = matrix.find((item) => item.name === "Vite+ 1.4.0");
+    const toolchain = matrix[0];
     await inspectInstalledToolchain(root, toolchain, "starter-install");
     await exec(process.execPath, [npmCli, "ci", "--no-audit", "--no-fund"], {
       cwd: root,
@@ -851,7 +846,7 @@ test("Vite+ starter uses one installed toolchain for dev, checks, tests and buil
   }
 });
 
-test("MSW 3 is rejected by Vite+ strict peer installation", async () => {
+test("MSW 3 rejects the legacy Vite+ 1.4 alias under strict peer installation", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "askr-vite-msw3-peers-")));
   try {
     await test.info().attach("peer-probe-toolchain.json", {
