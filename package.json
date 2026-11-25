@@ -72,6 +72,7 @@
     "@playwright/test": "1.63.0",
     "@types/node": "^26.3.0",
     "@typescript/typescript6": "^6.0.2",
+    "@typescript/native-preview": "^7.0.0-dev",
     "publint": "^0.3.24",
     "sharp": "^0.35.3",
     "typescript": "^7.0.2",
