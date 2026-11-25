@@ -39,7 +39,7 @@ describe("Vite package architecture", () => {
     expect(manifest.dependencies?.["vite-plus"]).toBeUndefined();
     expect(manifest.peerDependencies?.vite).toBeUndefined();
     expect(manifest.peerDependencies?.["vite-plus"]).toMatch(/[<>^~*]/);
-    expect(manifest.peerDependencies?.["vite-plus"]).toBe("^1.4.0");
+    expect(manifest.peerDependencies?.["vite-plus"]).toBe("^0.3.1 || >=1.1.0 <2");
     expect(manifest.peerDependenciesMeta?.["vite-plus"]).toBeUndefined();
   });
 
