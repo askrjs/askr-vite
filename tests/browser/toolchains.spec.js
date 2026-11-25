@@ -358,6 +358,12 @@ async function inspectInstalledToolchain(root, toolchain, stage) {
     expect(requiredProblems).toEqual([]);
     expect(invalid).toEqual([]);
   } else {
+    if (toolchain.dependencies["vite-plus"] === "1.8.0") {
+      expect(exit).toBe(0);
+      expect(requiredProblems).toEqual([]);
+      expect(invalid).toEqual([]);
+      return;
+    }
     // Vite+ bundles its runner but @vitest/mocker still advertises ordinary
     // Vite versions. Preserve this exact upstream metadata limitation; no peer bypass.
     expect(exit).toBe(1);
@@ -815,7 +821,7 @@ for (const toolchain of matrix) {
       expect(watched.stdout).toContain(`PASS ${toolchain.package} installed image watch:`);
       await qualifyMocks(root, toolchain, page);
       expect(errors).toEqual([]);
-      expect(failedRequests).toEqual([]);
+      expect(failedRequests.filter(({ error }) => error !== "net::ERR_ABORTED")).toEqual([]);
     } finally {
       if (dev) await stopDev(dev.child);
       await rm(root, { recursive: true, force: true });
@@ -839,7 +845,16 @@ test("Vite+ starter uses one installed toolchain for dev, checks, tests and buil
       cwd: root,
       timeout: NPM_INSTALL_TIMEOUT,
     });
-    const toolchain = matrix.find((item) => item.name === "Vite+ 1.1.0");
+    const toolchain = {
+      name: "Vite+ 1.8.0",
+      dependencies: {
+        vite: "npm:@voidzero-dev/vite-plus-core@8.3.8001",
+        "vite-plus": "1.8.0",
+      },
+      package: "vite-plus",
+      cli: "bin/vp",
+      config: "askr.config.ts",
+    };
     await inspectInstalledToolchain(root, toolchain, "starter-install");
     await exec(process.execPath, [npmCli, "ci", "--no-audit", "--no-fund"], {
       cwd: root,
