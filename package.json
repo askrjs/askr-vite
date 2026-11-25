@@ -63,26 +63,27 @@
   },
   "dependencies": {
     "@askrjs/node": ">=0.5.0 <0.6.0",
-    "oxc-parser": "^0.159.0",
-    "parse5": "^8.1.1"
+    "oxc-parser": "^0.147.0",
+    "parse5": "^8.0.1"
   },
   "devDependencies": {
     "@askrjs/askr": ">=0.5.0 <0.6.0",
     "@askrjs/server": ">=0.5.0 <0.6.0",
-    "@playwright/test": "1.65.1",
-    "@types/node": "^26.6.6",
+    "@playwright/test": "1.63.0",
+    "@types/node": "^26.3.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "publint": "^0.3.25",
-    "sharp": "^0.35.5",
+    "@typescript/typescript6": "^6.0.2",
+    "publint": "^0.3.24",
+    "sharp": "^0.35.3",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
-    "vite-plus": "1.7.0",
-    "vitest": "5.1.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0",
+    "vite-plus": "1.4.0",
+    "vitest": "5.0.5"
   },
   "peerDependencies": {
     "@askrjs/askr": ">=0.5.0 <0.6.0",
     "sharp": "^0.35.3",
-    "vite-plus": "^1.4.0"
+    "vite-plus": "^0.3.1 || >=1.1.0 <2"
   },
   "peerDependenciesMeta": {
     "sharp": {
@@ -90,8 +91,8 @@
     }
   },
   "overrides": {
-    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
-    "vitest": "5.1.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0",
+    "vitest": "5.0.5"
   },
   "engines": {
     "node": ">=24.0.0"

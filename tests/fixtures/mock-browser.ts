@@ -1,4 +1,4 @@
-import { http, HttpResponse } from "msw/http";
+import { http, HttpResponse } from "msw";
 import { setupWorker } from "msw/browser";
 
 let reply = "First mock";
