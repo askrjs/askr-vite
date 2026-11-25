@@ -5,6 +5,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { build as viteBuild } from "vite";
 import { build as vitePlusBuild } from "vite-plus";
 import { image as nodeImage } from "../src/image-node.ts";
 import { ImagePipeline } from "../src/image-pipeline.ts";
@@ -455,8 +456,10 @@ const changedSvg =
 const svgDeclaration =
   'import { image } from "@askrjs/vite/image";\nexport const hero = image(new URL("./hero.svg", import.meta.url));\n';
 
-describe("responsive image build watch with Vite+", () => {
-  const build = vitePlusBuild;
+describe.each([
+  ["Vite", viteBuild],
+  ["Vite+", vitePlusBuild],
+])("responsive image build watch with %s", (_name, build) => {
   it("should rebuild from an atomic source-image replacement without touching its declaring module", async () => {
     const root = await createFixture();
     const entryPath = path.join(root, "src/main.ts");
@@ -755,7 +758,7 @@ it("should preserve checked client metadata during an unrelated SSR build", asyn
   const root = await createFixture();
   const client = await buildFixture(root);
   await fs.writeFile(path.join(root, "src/server.ts"), "export const server = true;\n");
-  await vitePlusBuild({
+  await viteBuild({
     root,
     configFile: false,
     logLevel: "silent",
@@ -777,7 +780,7 @@ it("should preserve checked client metadata during an SSR build that imports ima
   const client = await buildFixture(root);
   const serverPath = path.join(root, "src/server.ts");
   await fs.writeFile(serverPath, 'import "./main.ts";\nexport const server = true;\n');
-  await vitePlusBuild({
+  await viteBuild({
     root,
     configFile: false,
     logLevel: "silent",
@@ -807,7 +810,7 @@ it("should clear stale checked metadata after a client rebuild removes all image
   expect(Object.keys(client.metadata.entries)).toHaveLength(1);
 
   await fs.writeFile(path.join(root, "src/main.ts"), "export const noImage = true;\n");
-  await vitePlusBuild({
+  await viteBuild({
     root,
     configFile: false,
     base: "/docs/",
@@ -857,7 +860,7 @@ it("should build images from nested Unicode and URL-reserved paths with original
     'export const View = () => <><img class="shared" src={hero.src}/><img class="shared" src={hero.src}/></>;',
   ].join("\n");
   await fs.writeFile(id, source);
-  const result = await vitePlusBuild({
+  const result = await viteBuild({
     root,
     configFile: false,
     logLevel: "silent",
@@ -923,7 +926,7 @@ it("should compose identical plugin instances without duplicate JSX, image emiss
     'export const View = () => <><img class="shared" src={hero.src}/><img class="shared" src={hero.src}/></>;',
   ].join("\n");
   await fs.writeFile(id, source);
-  const result = await vitePlusBuild({
+  const result = await viteBuild({
     root,
     configFile: false,
     logLevel: "silent",
@@ -961,7 +964,7 @@ it("should compose identical plugin instances without duplicate JSX, image emiss
   ).toEqual(record.image);
   await fs.writeFile(id, "export const Broken = () => <main>");
   await expect(
-    vitePlusBuild({
+    viteBuild({
       root,
       configFile: false,
       logLevel: "silent",
