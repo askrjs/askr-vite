@@ -976,6 +976,10 @@ test("MSW 3: Vite+ strict install and plain Vite ordinary ci expose exact upstre
       visit(graph.tree, "root");
       expect(invalid).toEqual([
         {
+          path: "root/@askrjs/vite/vite-plus/@vitest/mocker/msw",
+          reason: '"^2.4.9" from node_modules/vitest/node_modules/@vitest/mocker',
+        },
+        {
           path: "root/vitest/@vitest/mocker/msw",
           reason: '"^2.4.9" from node_modules/vitest/node_modules/@vitest/mocker',
         },
