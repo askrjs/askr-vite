@@ -437,6 +437,32 @@ describe("Vite server integration", () => {
     expect(config.appType).toBe("custom");
   });
 
+  it("should route nested development page URLs to the matching Askr page", async () => {
+    const root = await fixture();
+    const seen = [];
+    const server = {
+      config: { root },
+      ssrLoadModule: async () => ({
+        app: {
+          fetch: async (request) => {
+            const path = new URL(request.url).pathname;
+            seen.push(path);
+            return fragment(path === "/" ? "<main>root page</main>" : `<main>${path}</main>`);
+          },
+        },
+      }),
+      transformIndexHtml: async (_url, html) => html,
+    };
+    const app = createDevelopmentApp(server, { entry: "./server.ts" });
+    const rootHtml = await (await app.fetch(new Request("http://example.test/"))).text();
+    const nestedHtml = await (
+      await app.fetch(new Request("http://example.test/nested/page"))
+    ).text();
+    expect(rootHtml).toContain("<main>root page</main>");
+    expect(nestedHtml).toContain("<main>/nested/page</main>");
+    expect(seen).toEqual(["/", "/nested/page"]);
+  });
+
   it("should inline the Askr package family given linked peers in Vite module runners", () => {
     const config = askrServer({ entry: "./server.ts" }).config();
     expect(config.resolve.noExternal).toHaveLength(1);
