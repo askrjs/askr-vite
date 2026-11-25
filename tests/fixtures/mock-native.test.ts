@@ -20,6 +20,7 @@ it("uses native Askr queries and Fetch with the installed mock/test toolchain", 
   const endpoint = `${baseUrl}/profile`;
   const server = setupServer(http.get(endpoint, () => HttpResponse.json({ name: "Mock profile" })));
   server.listen();
+  let serverClosed = false;
   try {
     const api = defineApi({
       profile: get("/profile").returns(200, json<{ name: string }>()).errors({ 503: json() }),
@@ -48,10 +49,11 @@ it("uses native Askr queries and Fetch with the installed mock/test toolchain", 
     await query.refresh();
     expect(query.data).toEqual({ name: "Retried profile" });
     await server.close();
+    serverClosed = true;
     expect(await (await fetch(endpoint)).json()).toEqual({ name: "Real profile" });
   } finally {
     server.resetHandlers();
-    await server.close();
+    if (!serverClosed) await server.close();
     real.closeAllConnections();
     await new Promise<void>((resolve, reject) =>
       real.close((error) => (error ? reject(error) : resolve())),

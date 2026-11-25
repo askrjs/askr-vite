@@ -27,7 +27,7 @@ beforeAll(async () => {
   const npmCli = process.env.npm_execpath;
   if (!npmCli) throw new Error("npm_execpath is required to run the installed-package build");
   await exec(process.execPath, [npmCli, "run", "build"], { cwd: repositoryRoot });
-});
+}, 30_000);
 
 async function linkPackage(consumerRoot, name) {
   const target = dirname(require.resolve(`${name}/package.json`));
