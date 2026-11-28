@@ -25,6 +25,10 @@ const NPM_INSTALL_TIMEOUT = process.platform === "win32" ? 180_000 : 120_000;
 // Windows CI spends about 172 seconds on the packed consumer's install and ci
 // before it can run the remaining toolchain, HMR, image, and build assertions.
 const PACKED_CONSUMER_TEST_TIMEOUT = process.platform === "win32" ? 420_000 : 180_000;
+const ASKR_050_FLOOR = {
+  dependencies: { "@askrjs/askr": "0.5.0", "@askrjs/fetch": "0.5.0" },
+  devDependencies: { "@askrjs/node": "0.5.0", "@askrjs/server": "0.5.0" },
+};
 
 // Read a finite snapshot even while npm is still appending its own log.
 function readNpmLog(path, remaining = NPM_LOG_TOTAL_LIMIT) {
@@ -392,6 +396,8 @@ async function inspectInstalledToolchain(root, toolchain, stage) {
     "@askrjs/vite",
     "@askrjs/askr",
     "@askrjs/fetch",
+    "@askrjs/node",
+    "@askrjs/server",
     "vite",
     "msw",
     toolchain.package === "vite" ? "vitest" : "vite-plus",
@@ -409,6 +415,9 @@ async function inspectInstalledToolchain(root, toolchain, stage) {
   }
   expect(packages.vite.version).toBe(toolchain.dependencies.vite.split("@").at(-1));
   expect(packages.msw.version).toBe(toolchain.dependencies.msw);
+  expect(packages["@askrjs/askr"].version).toBe("0.5.0");
+  expect(packages["@askrjs/node"].version).toBe("0.5.0");
+  expect(packages["@askrjs/server"].version).toBe("0.5.0");
   await test.info().attach(`installed-toolchain-${stage}.json`, {
     body: Buffer.from(
       JSON.stringify(
@@ -625,8 +634,13 @@ for (const toolchain of matrix) {
         JSON.stringify({
           private: true,
           type: "module",
-          dependencies: { "@askrjs/askr": "0.5.0", "@askrjs/fetch": "0.5.0" },
-          devDependencies: { "@askrjs/vite": tarball, sharp: "0.35.5", ...toolchain.dependencies },
+          dependencies: ASKR_050_FLOOR.dependencies,
+          devDependencies: {
+            "@askrjs/vite": tarball,
+            ...ASKR_050_FLOOR.devDependencies,
+            sharp: "0.35.5",
+            ...toolchain.dependencies,
+          },
           allowScripts: {
             [`msw@${toolchain.dependencies.msw}`]: true,
             "sharp@0.35.5": true,
@@ -930,9 +944,10 @@ test("MSW 3: Vite+ strict install and plain Vite ordinary ci expose exact upstre
       JSON.stringify({
         private: true,
         type: "module",
-        dependencies: { "@askrjs/askr": "0.5.0" },
+        dependencies: ASKR_050_FLOOR.dependencies,
         devDependencies: {
           "@askrjs/vite": tarball,
+          ...ASKR_050_FLOOR.devDependencies,
           vite: "npm:@voidzero-dev/vite-plus-core@1.1.0",
           "vite-plus": "1.1.0",
           msw: "3.0.2",
@@ -962,8 +977,14 @@ test("MSW 3: Vite+ strict install and plain Vite ordinary ci expose exact upstre
       JSON.stringify({
         private: true,
         type: "module",
-        dependencies: { "@askrjs/askr": "0.5.0" },
-        devDependencies: { "@askrjs/vite": tarball, vite: "8.2.2", vitest: "5.0.3", msw: "3.0.3" },
+        dependencies: ASKR_050_FLOOR.dependencies,
+        devDependencies: {
+          "@askrjs/vite": tarball,
+          ...ASKR_050_FLOOR.devDependencies,
+          vite: "8.2.2",
+          vitest: "5.0.3",
+          msw: "3.0.3",
+        },
       }),
     );
     for (const command of ["install", "ci"]) {
