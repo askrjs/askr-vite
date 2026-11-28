@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.5.1 - 2026-11-28
+
+### Changed
+
+- Require Vite+ for development tooling and add coverage for nested development routing.
+
 ## 0.5.0 - 2026-10-12
 
 ### Breaking changes
