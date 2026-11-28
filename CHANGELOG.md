@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.5.1 - 2026-11-28
+
+### Breaking changes
+
+- Require the `vite-plus` peer for the plugin and remove support for using plain
+  Vite alone. Switch the project to Vite+ and use a matching Vite+ core alias if
+  the project resolves `vite` directly. See the [Vite+ setup](README.md).
+
+### Tests
+
+- Cover nested development routing.
+
 ## 0.5.0 - 2026-10-12
 
 ### Breaking changes
